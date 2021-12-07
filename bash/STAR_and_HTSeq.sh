@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # MICB 405: Group 8
 # STAR (RNA alignment) and HTSeq (determining reads/gene)
@@ -7,7 +7,9 @@
 mkdir /projects/micb405/analysis/GROUP8/star && cd /projects/micb405/analysis/GROUP8/star
 mkdir STARIndex
 
-#generate your STAR index using the mm10 reference genome (.fasta) and gene file (.gtf)
+### STAR ###
+
+#generate STAR index using the mm10 reference genome (.fasta) and gene file (.gtf)
 STAR \
   --runMode genomeGenerate \
   --genomeDir STARIndex \
@@ -36,6 +38,8 @@ do
   --genomeLoad NoSharedMemory
 done
 
+### HTSeq ###
+
 mkdir /projects/micb405/analysis/GROUP8/htseq_output && cd /projects/micb405/analysis/GROUP8/htseq_output
 
 #install HTSeq
@@ -45,7 +49,7 @@ pip3 install htseq
 #keep indexed .bai files in the same directory as the original .bam files
 samtools index /projects/micb405/analysis/GROUP8/RNA_alignments2/*.bam
 
-#run HTSeq on STAR output .bam files to determine reads/gene
+#run HTSeq on your STAR output .bam files to determine reads/gene
 for FILE in /projects/micb405/analysis/GROUP8/RNA_alignments2/*.fastq.gzAligned.sortedByCoord.out.bam
 do
  NAME=$(basename $FILE)
