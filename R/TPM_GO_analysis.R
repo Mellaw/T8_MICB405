@@ -1,5 +1,5 @@
 # Kitty Martens
-# GO analysis of tpm data
+# GO analysis of top quartile of TPM data
 
 # 5 Dec 2021
 
