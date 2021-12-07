@@ -1,5 +1,5 @@
 # Kitty Martens
-# RNA alignments in deseq2 - following STAR
+# RNA expression analysis following STAR/HTSeq
 # 22 Nov 2021
 
 #load necessary packages
