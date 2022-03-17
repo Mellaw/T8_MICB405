@@ -1,7 +1,8 @@
-#Purpose:
-#Filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+)
-#Writing gene subset catalogues
-#GO term analysis of gene subsets
+# Function:
+# 1. Filtering gene list into 4 subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+)
+# 2. Writing gene subset catalogues
+# 3. GO term analysis of 4 gene subsets (4 analyses)
+# 4. GO term analysis of genes in top and bottom quartiles of expression (TPM) for each of the 4 subsets (2x4 analyses)
 
 library(DESeq2)
 library(tidyverse)
@@ -50,7 +51,7 @@ enhancers_and_genes <- relocate(enhancer_status_with_genes_ensembl, ENSEMBL, .be
 write.table(enhancers_and_genes, file = "enhancer_status_with_genes_and_expression.tsv", quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
 
 
-### filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+) ###
+############################## filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+) ##############################
 
 #open/ac-
 MPP_closed_unac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 0)
@@ -81,7 +82,7 @@ B_cell_open_ac <- filter(enhancers_and_genes, Bcell_atac_significant == 1, Bcell
 Mono_open_ac <- filter(enhancers_and_genes, Mono_atac_significant == 1, Mono_ac_significant == 1)
 Gran_open_ac <- filter(enhancers_and_genes, Gran_atac_significant == 1, Gran_ac_significant == 1)
 
-### write gene subset catalogues ###
+############################## write gene subset catalogues ##############################
 
 #closed/ac-
 write.table(MPP_closed_unac, file='MPP_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
@@ -112,7 +113,7 @@ write.table(B_cell_open_ac, file='B_cell_open_ac_gene_catalogue.tsv', quote=FALS
 write.table(Mono_open_ac, file='Mono_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
 write.table(Gran_open_ac, file='Gran_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
 
-### GO term analysis of gene subsets (nearest enhancer open/closed chromatin, H3K27ac-/+) ###
+############################## GO term analysis of gene subsets (nearest enhancer open/closed chromatin, H3K27ac-/+) ##############################
 
 #add ENTREZ IDs to all genes (gene universe for GO analysis)
 enhancers_and_genes$ENTREZ <- mapIds(
@@ -896,7 +897,7 @@ GO_Gran_open_ac <- {
   
 }
 
-### GO term analysis of genes with highest and lowest expression in each subset, defined by top and top quartile of TPM ###
+############################## GO term analysis of genes with highest and lowest expression in each subset, defined by top and top quartile of TPM ##############################
 
 #extract top quantile of gene expression in each subset
 
