@@ -53,13 +53,8 @@ write.table(enhancers_and_genes, file = "enhancer_status_with_genes_and_expressi
 
 ### filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+) ###
 
-#open/ac-
-MPP_closed_unac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 0)
-CMP_closed_unac <- filter(enhancers_and_genes, CMP_atac_significant == 0, CMP_ac_significant == 0)
-GMP_closed_unac <- filter(enhancers_and_genes, GMP_atac_significant == 0, GMP_ac_significant == 0)
-B_cell_closed_unac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bcell_ac_significant == 0)
-Mono_closed_unac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 0)
-Gran_closed_unac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 0)
+"%nin" = Negate("%in%")
+
 #closed/ac+
 MPP_closed_ac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 1)
 CMP_closed_ac <- filter(enhancers_and_genes, CMP_atac_significant == 0, CMP_ac_significant == 1)
@@ -67,13 +62,22 @@ GMP_closed_ac <- filter(enhancers_and_genes, GMP_atac_significant == 0, GMP_ac_s
 B_cell_closed_ac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bcell_ac_significant == 1)
 Mono_closed_ac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 1)
 Gran_closed_ac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 1)
-#open/ac-
-MPP_open_unac <- filter(enhancers_and_genes, MPP_atac_significant == 1, MPP_ac_significant == 0)
-CMP_open_unac <- filter(enhancers_and_genes, CMP_atac_significant == 1, CMP_ac_significant == 0)
-GMP_open_unac <- filter(enhancers_and_genes, GMP_atac_significant == 1, GMP_ac_significant == 0)
-B_cell_open_unac <- filter(enhancers_and_genes, Bcell_atac_significant == 1, Bcell_ac_significant == 0)
-Mono_open_unac <- filter(enhancers_and_genes, Mono_atac_significant == 1, Mono_ac_significant == 0)
-Gran_open_unac <- filter(enhancers_and_genes, Gran_atac_significant == 1, Gran_ac_significant == 0)
+
+#closed/ac-
+MPP_closed_ac_unique <- filter(MPP_closed_ac, !duplicated(MPP_closed_ac["gene"]))
+CMP_closed_ac_unique <- filter(CMP_closed_ac, !duplicated(CMP_closed_ac["gene"]))
+GMP_closed_ac_unique <- filter(GMP_closed_ac, !duplicated(GMP_closed_ac["gene"]))
+B_cell_closed_ac_unique <- filter(B_cell_closed_ac, !duplicated(B_cell_closed_ac["gene"]))
+Mono_closed_ac_unique <- filter(Mono_closed_ac, !duplicated(Mono_closed_ac["gene"]))
+Gran_closed_ac_unique <- filter(Gran_closed_ac, !duplicated(Gran_closed_ac["gene"]))
+
+MPP_closed_unac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 0, gene %nin% MPP_closed_ac_unique$gene)
+CMP_closed_unac <- filter(enhancers_and_genes, CMP_atac_significant == 0, CMP_ac_significant == 0, gene %nin% CMP_closed_ac_unique$gene)
+GMP_closed_unac <- filter(enhancers_and_genes, GMP_atac_significant == 0, GMP_ac_significant == 0, gene %nin% GMP_closed_ac_unique$gene)
+B_cell_closed_unac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bcell_ac_significant == 0, gene %nin% B_cell_closed_ac_unique$gene)
+Mono_closed_unac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 0, gene %nin% Mono_closed_ac_unique$gene)
+Gran_closed_unac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 0, gene %nin% Gran_closed_ac_unique$gene)
+
 #open/ac+
 MPP_open_ac <- filter(enhancers_and_genes, MPP_atac_significant == 1, MPP_ac_significant == 1)
 CMP_open_ac <- filter(enhancers_and_genes, CMP_atac_significant == 1, CMP_ac_significant == 1)
@@ -81,6 +85,21 @@ GMP_open_ac <- filter(enhancers_and_genes, GMP_atac_significant == 1, GMP_ac_sig
 B_cell_open_ac <- filter(enhancers_and_genes, Bcell_atac_significant == 1, Bcell_ac_significant == 1)
 Mono_open_ac <- filter(enhancers_and_genes, Mono_atac_significant == 1, Mono_ac_significant == 1)
 Gran_open_ac <- filter(enhancers_and_genes, Gran_atac_significant == 1, Gran_ac_significant == 1)
+
+#open/ac-
+MPP_open_ac_unique <- filter(MPP_open_ac, !duplicated(MPP_open_ac["gene"]))
+CMP_open_ac_unique <- filter(CMP_open_ac, !duplicated(CMP_open_ac["gene"]))
+GMP_open_ac_unique <- filter(GMP_open_ac, !duplicated(GMP_open_ac["gene"]))
+B_cell_open_ac_unique <- filter(B_cell_open_ac, !duplicated(B_cell_open_ac["gene"]))
+Mono_open_ac_unique <- filter(Mono_open_ac, !duplicated(Mono_open_ac["gene"]))
+Gran_open_ac_unique <- filter(Gran_open_ac, !duplicated(Gran_open_ac["gene"]))
+
+MPP_open_unac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 0, gene %nin% MPP_open_ac_unique$gene)
+CMP_open_unac <- filter(enhancers_and_genes, CMP_atac_significant == 0, CMP_ac_significant == 0, gene %nin% CMP_open_ac_unique$gene)
+GMP_open_unac <- filter(enhancers_and_genes, GMP_atac_significant == 0, GMP_ac_significant == 0, gene %nin% GMP_open_ac_unique$gene)
+B_cell_open_unac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bcell_ac_significant == 0, gene %nin% B_cell_open_ac_unique$gene)
+Mono_open_unac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 0, gene %nin% Mono_open_ac_unique$gene)
+Gran_open_unac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 0, gene %nin% Gran_open_ac_unique$gene)
 
 ### write gene subset catalogues ###
 
