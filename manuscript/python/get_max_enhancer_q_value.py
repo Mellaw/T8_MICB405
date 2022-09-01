@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 
-folder = "/projects/micb405/analysis/GROUP8/comb_bdg"
+folder = getcwd()
 
 for f in os.listdir(folder):
 	if not '_q.bdg' in f: continue;
