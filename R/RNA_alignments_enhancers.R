@@ -38,7 +38,7 @@ sample_df$entrez <- mapIds(
 )
 
 #create a list of all unique genes
-all_genes_enhancers_enhancers <- sample_df %>% 
+all_genes_enhancers <- sample_df %>% 
   as.data.frame() %>% 
   pull(entrez) %>% 
   unique()
