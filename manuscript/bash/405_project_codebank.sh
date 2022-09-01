@@ -27,7 +27,7 @@ parallel -j16 < ./srr_metadata/gnu_download.txt
 
 #### ALIGN BAM FILES FOR iCHIP AND ATAC-SEQ #####
 
-python ./srr_metadata/rename_fastq.py
+python ./python/rename_fastq.py
 
 
 fq_dir=./data/fastq
