@@ -12,34 +12,36 @@ import seaborn as sns
 import os
 import math
 
+data_dir = os.path.join(getcwd(), "data/macs2_comb")
+
 def get_atac(ct):
     s = 'atac'
-    df = pd.read_csv('bdg/ATAC-Seq_%s_minq.bdg' % ct, sep = '\t')
+    df = pd.read_csv(os.path.join(data_dir, 'ATAC-Seq_%s_minq.bdg' % ct), sep = '\t')
     df = df.rename(columns = {'significant':'%s_%s_significant' % (ct,s)})
     df = df[['chr','start','end','enhancer','%s_%s_significant' % (ct,s)]]
     return df
 
 def get_ac(ct):
     s = 'ac'
-    df = pd.read_csv('bdg/H3K27Ac_%s_minq.bdg' % ct, sep = '\t')
+    df = pd.read_csv(os.path.join(data_dir, 'H3K27Ac_%s_minq.bdg' % ct), sep = '\t')
     df = df.rename(columns = {'significant':'%s_%s_significant' % (ct,s)})
     df = df[['chr','start','end','enhancer','%s_%s_significant' % (ct,s)]]
     return df
 
 def get_me(ct):
     s = 'me'
-    df = pd.read_csv('bdg/H3K4me1_%s_minq.bdg' % ct, sep = '\t')
+    df = pd.read_csv(os.path.join(data_dir, 'H3K4me1_%s_minq.bdg' % ct), sep = '\t')
     df = df.rename(columns = {'significant':'%s_%s_significant' % (ct,s)})
     df = df[['chr','start','end','enhancer','%s_%s_significant' % (ct,s)]]
     return df
 
-atac = pd.read_csv('bdg/ATAC-Seq_LSKBMC_minq.bdg', sep = '\t')
-me = pd.read_csv('bdg/H3K4me1_MPP_minq.bdg', sep = '\t')
-ac = pd.read_csv('bdg/H3K27ac_MPP_minq.bdg', sep = '\t')
+atac = pd.read_csv(os.path.join(data_dir, 'ATAC-Seq_LSKBMC_minq.bdg'), sep = '\t')
+me = pd.read_csv(os.path.join(data_dir, 'H3K4me1_MPP_minq.bdg'), sep = '\t')
+ac = pd.read_csv(os.path.join(data_dir, 'H3K27ac_MPP_minq.bdg'), sep = '\t')
 atac.head()
 
 ### Get only the closed DNA> This means FE < 0 and not in mpp_ac_peaks
-enhs = pd.read_csv('mm10_enhancerAll.bed', sep= '\t', header = None)
+enhs = pd.read_csv(os.path.join(getcwd(), 'data/references','mm10_enhancerAll.bed'), sep= '\t', header = None)
 enhs.columns = ['chr','start','end','enhancer']
 for s,df in zip(['atac','ac','me'],[atac,ac,me]):
     df = df.rename(columns = {'significant':'MPP_%s_significant' % s})
