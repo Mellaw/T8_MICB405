@@ -6,7 +6,7 @@ This is the full code repository for Group 8's MICB 405 capstone project. Python
 
 After downloading this repository, follow these step to replicate our findings:
 
-To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bash/405_project_codebank.sh. Figures can be recreated using the data generated (final data located in data/enhancer_status.tsv), but exact code is not included. The following dependencies are required:
+To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bash/405_project_codebank.sh **from the ./manuscript folder**. Figures can be recreated using the data generated (final data located in data/enhancer_status.tsv), but exact code is not included. The following dependencies are required:
 - Ubuntu 16.04.5
 - bwa 0.7.17-r1188
 - bigBedToBed v1
