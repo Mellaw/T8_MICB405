@@ -57,4 +57,4 @@ for ct in ['CMP','GMP','Bcell','Mono','Gran']:
         enhs = enhs.merge(df, on = ['chr','start','end','enhancer'], how = 'left')
 enhs = enhs.fillna(0)
 
-enhs.to_csv('enhancers_status.tsv', sep = '\t', index = None)
+enhs.to_csv('data/enhancers_status.tsv', sep = '\t', index = None)
