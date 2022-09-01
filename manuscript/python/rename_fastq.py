@@ -10,12 +10,12 @@ ct_names = {'Granulocyte Monocyte Progenitor (GMP)': 'GMP',
 	    'Lin-Sca1+Kit- bone marrow cells':'LSKBMC',
 	    'B cells':'Bcell'}
 
-
-srr_runs = pd.read_csv("/projects/micb405/analysis/GROUP8/srr_metadata/srr_to_download.tsv", sep = '\t')
+cwd = getcwd()
+srr_runs = pd.read_csv(os.path.join(cwd, "srr_metadata/srr_to_download.tsv"), sep = '\t')
 srr_runs = srr_runs.set_index('Run')
 srr_runs['ct_file'] = srr_runs['cell_type'].map(ct_names)
 
-fq_dir = '/projects/micb405/analysis/GROUP8/fastq/'
+fq_dir = os.path.join(cwd, 'fastq')
 
 for f in os.listdir(fq_dir):
     row = srr_runs.loc[f.split('.')[0]]
