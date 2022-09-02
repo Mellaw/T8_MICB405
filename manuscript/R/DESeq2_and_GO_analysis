@@ -1,3 +1,14 @@
+
+#Inputs:
+#C:/Users/Helena/405_Linux_outputs/HTSeq/samples.csv (download from R folder on Github)
+#C:/Users/Helena/405_Linux_outputs/HTSeq/*.htseq.out (export 22 .htseq.out files from STAR_and_HTSeq.sh in bash folder on Github)
+#C:/Users/Helena/405_Linux_outputs/enhancers_status.tsv (export from assign_enhancer_status.py script in python folder on Github)
+#C:/Users/Helena/405_Linux_outputs/mpp_acet_closed_great.txt (download from GREAT after analysis in line ____________________________)
+#C:/Users/Helena/405_Linux_outputs/single_closest_gene.txt (download from GREAT after analysis in line ____________________________)
+#C:/Users/Helena/405_Linux_outputs/enhancer_gene_map.txt 
+
+
+
 ########### DESeq2 RNA expression analysis following STAR/HTSeq ########### 
 
 #load necessary packages
@@ -10,18 +21,22 @@ library(AnnotationDbi)
 library(org.Mm.eg.db)
 library(GO.db)
 library(GOstats)
+library(topGO)
+library(xlsx)
 
-dir <- "HTSeq"
+setwd("C:/Users/Helena/405_Linux_outputs/")
 
-# assign file path to a variable
+dir <- "C:/Users/Helena/405_Linux_outputs/HTSeq"
+
+#assign file path to a variable
 sample_metadata <- read_csv(file.path(dir, "samples.csv"))
 sample_metadata
 
-# assign HTSeq files to a variable
+#assign HTSeq files to a variable
 files <- file.path(dir, sample_metadata$sample)
 files
 
-# create a new data table with the variables sampleName, fileName and cell_type
+#create a new data table with the variables sampleName, fileName and cell_type
 sample_df <- data.frame(sampleName = sample_metadata$column1,
                         fileName = files,
                         condition = sample_metadata$cell_type,
@@ -30,13 +45,13 @@ sample_df <- data.frame(sampleName = sample_metadata$column1,
 ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = sample_df,
                                        design = ~ condition)
 
-# set control condition (MPP) using the relevel function
+#set control condition (MPP) using the relevel function
 ddsHTSeq$condition <- relevel(ddsHTSeq$condition, ref = "MPP")
 
-# run DESeq on ddsHTSeq
+#run DESeq on ddsHTSeq
 dds <- DESeq(ddsHTSeq)
 
-# print and write table for DESeq2 results
+#print and write table for DESeq2 results
 
 all.names <-  results(dds)
 res_Bcell_vs_MPP <- results(dds, name = "condition_Bcell_vs_MPP")
@@ -53,16 +68,12 @@ write.table(res_Mono_vs_MPP, file = 'Mono_vs_MPP_all.txt', sep = '\t', col.names
   
   
   
-########### Combining gene expression data with enhancer data, for closed/ac enhancers in MPP ########### 
-
-# libraries  --------------------------------------------------------------
-library(tidyverse)
-library(dplyr)
+########### Associating genes (and gene expression) with enhancer data, for closed/ac+ enhancers in MPP ########### 
 
 enhancers <-  read.table(file = 'enhancers_status.tsv',
                          sep = '\t', header = TRUE)
                          
-# Subset enhancers by closed/ac in MPP --------------------------------------------------------
+#subset enhancers by closed/ac in MPP
 
 mpp_acet_closed <- enhancers %>% 
   filter(MPP_atac_significant == 0 &
@@ -71,10 +82,10 @@ mpp_acet_closed <- enhancers %>%
 mpp_acet_closed_great <-  mpp_acet_closed %>% 
   select(chr, start, end, enhancer)
 
-#Export enhancers as .bed for visualization in GREAT 
+#export enhancers as .bed for visualization in GREAT 
 write_tsv(mpp_acet_closed_great, "mpp_acet_closed_great.bed", col_names = FALSE)
 
-# Filter closed/ac enhancers in MPP from GREAT ---------------------------------------------------------
+#filter closed/ac enhancers in MPP from GREAT
 
 great <- read.table(file = 'mpp_acet_closed_great.txt',
                     sep = '\t', header = FALSE)
@@ -102,7 +113,7 @@ gene_dist$bp_dist = bp_dist
 gene_dist <- gene_dist %>% 
   select(-c("gene_ls"))
 
-# Filter lineages ---------------------------------------------------------
+#import DESeq2 results
 bcell <- read.table(file = 'Bcell_vs_MPP_all.txt', sep = '\t', header = TRUE)
 cmp <- read.table(file = 'CMP_vs_MPP_all.txt', sep = '\t', header = TRUE)
 gmp <- read.table(file = 'GMP_vs_MPP_all.txt', sep = '\t', header = TRUE)
@@ -118,7 +129,7 @@ colnames(gmp) <- c("gene", "baseMean", "gmp_log2fold", "lfcSE", "stat",
 colnames(gran) <- c("gene", "baseMean", "gran_log2fold", "lfcSE", "stat",
                     "pvalue", "gran_padj")
 
-#Filter cell lineages for desired columns from DESeq2 analysis
+#filter for desired columns from DESeq2 analysis
 
 bcell_sub <- bcell %>% 
   filter(gene %in% gene_nm) %>% 
@@ -136,7 +147,7 @@ gran_sub <- gran %>%
   filter(gene %in% gene_nm) %>% 
   select(gene, gran_log2fold, gran_padj)
 
-#Merge cell lineage information with gene & enhancer table 
+#merge DESeq2 results with gene & enhancer table 
 gene_dist = merge(gene_dist, bcell_sub, by = "gene", all.x = TRUE)
 gene_dist = merge(gene_dist, cmp_sub, by = "gene", all.x = TRUE)
 gene_dist = merge(gene_dist, gmp_sub, by = "gene", all.x = TRUE)
@@ -151,13 +162,13 @@ write_tsv(summary_narm, "closest_gene_expression_closed_ac_MPP_narm.tsv", col_na
 
 
 
-########### GO analysis of closed/ac in MPP following STAR/HTSeq ########### 
+########### GO-BP enrichment analysis of upregulated genes (relative to MPP) associated with closed/ac+ enhancers in MPP, and compared to all genes associated with closed/ac+ enhancers in MPP  ########### 
 
-# assign closed acetylated MPP genes identified in GREAT to a variable
+#assign closed/ac+ MPP genes identified in GREAT to a variable
 file_closed_ac_MPP <- read_tsv("closest_gene_expression_closed_ac_MPP_narm.tsv")
 file_closed_ac_MPP
 
-# create a new data frame to contain the enhancer files
+#create a new data frame to contain the enhancer files
 sample_df <- data.frame(file_closed_ac_MPP)
 
 #add ENSEMBL id's
@@ -184,7 +195,7 @@ all_genes_enhancers <- sample_df %>%
   pull(entrez) %>% 
   unique()
 
-# subset out only differentially abundant genes
+#subset out only differentially abundant genes
 significant_res_Bcell <- subset(sample_df, bcell_padj < 0.05)
 write_csv(as.data.frame(significant_res_Bcell), file = "Bcell_vs_MPP_05_Enhancer.csv")
 
@@ -240,6 +251,8 @@ genes_upregulated_mono <- significant_res_Mono %>%
   unique()
 
 write_csv(as.data.frame(genes_upregulated_mono), file = "Mono_vs_MPP_05_1_Enhancer.csv")
+
+#GO-BP enrichment analysis
 
 #create hypergtest object for each cell type and print to file
 go_bp_upregulated <- hyperGTest(new("GOHyperGParams",
@@ -299,7 +312,7 @@ write.csv(summary(go_bp_upregulated), file = "GOupsignificant_res_Mono.csv")
 
 
 
-########### GO analysis of closed/ac+ enhancer-associated genes in top quantile of TPM data, relative to all enhancer-associated genes ########### 
+########### GO-BP enrichment analysis of highest expressed (top TPM quantile) closed/ac+ enhancer-associated genes, relative to all enhancer-associated genes ########### 
 
 #import enhancer + nearest gene data tables
 enhancer_status <- read.table(file = 'enhancers_status.tsv', sep = '\t', header = TRUE)
@@ -347,7 +360,7 @@ enhancers_and_genes$ENTREZ <- mapIds(
   multiVals = "first"
 )
 
-# filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+) #
+#filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+) #
 
 #closed/ac+
 MPP_closed_ac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 1)
@@ -373,7 +386,7 @@ Mono_closed_ac_top_quantile <- subset(Mono_closed_ac, Mono_TPM >= Mono_closed_ac
 Gran_closed_ac_TPM_quantiles <- quantile(Gran_closed_ac$Gran_TPM, na.rm = TRUE)
 Gran_closed_ac_top_quantile <- subset(Gran_closed_ac, Gran_TPM >= Gran_closed_ac_TPM_quantiles[4])
 
-# GO analysis #
+#GO-BP enrichment analysis
 
 GO_MPP_closed_ac_top_quantile <- {
   
@@ -521,7 +534,7 @@ GO_Gran_closed_ac_top_quantile <- {
 }
 
 
-
+########### GO-BP enrichment analysis for each enhancer class (open/closed chromatin x H3K27ac-/+) ###########
 
 #Purpose:
 #Filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+)
@@ -544,39 +557,7 @@ library(xlsx)
 
 setwd("/Users/Helena/405_Linux_outputs/")
 
-#import enhancer + nearest gene data tables
-enhancer_status <- read.table(file = 'enhancers_status.tsv', sep = '\t', header = TRUE)
-enhancer_gene_map <- read.table(file = 'enhancer_gene_map.txt', sep = '\t', header = TRUE)
-
-#import expression data
-MPP_TPM <- read.table(file = 'MPP_geneExpression.tsv', sep = '\t', header = TRUE)
-CMP_TPM <- read.table(file = 'CMP_geneExpression.tsv', sep = '\t', header = TRUE)
-GMP_TPM <- read.table(file = 'GMP_geneExpression.tsv', sep = '\t', header = TRUE)
-B_cell_TPM <- read.table(file = 'Bcell_geneExpression.tsv', sep = '\t', header = TRUE)
-Mono_TPM <- read.table(file = 'Mono_geneExpression.tsv', sep = '\t', header = TRUE)
-Gran_TPM <- read.table(file = 'Gran_geneExpression.tsv', sep = '\t', header = TRUE)
-
-#merge enhancers + nearest genes
-enhancer_status_with_genes <- merge(enhancer_gene_map, enhancer_status, by="enhancer")
-
-#merge with ENSEMBL IDs + expression data
-enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes, MPP_TPM, by="gene", all.x = TRUE)
-enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
-enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, CMP_TPM, by="gene", all.x = TRUE)
-enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
-enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, GMP_TPM, by="gene", all.x = TRUE)
-enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
-enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, B_cell_TPM, by="gene", all.x = TRUE)
-enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
-enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, Mono_TPM, by="gene", all.x = TRUE)
-enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
-enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, Gran_TPM, by="gene", all.x = TRUE)
-
-enhancers_and_genes <- relocate(enhancer_status_with_genes_ensembl, ENSEMBL, .before = "gene")
-
-write.table(enhancers_and_genes, file = "enhancer_status_with_genes_and_expression.tsv", quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-
-### filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+) ###
+### filtering gene subsets by nearest enhancer status (open/closed chromatin x H3K27ac-/+) ###
 
 "%nin" = Negate("%in%")
 
@@ -626,59 +607,11 @@ B_cell_open_unac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bce
 Mono_open_unac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 0, gene %nin% Mono_open_ac_unique$gene)
 Gran_open_unac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 0, gene %nin% Gran_open_ac_unique$gene)
 
-### write gene subset catalogues ###
-
-#closed/ac-
-write.table(MPP_closed_unac, file='MPP_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(CMP_closed_unac, file='CMP_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(GMP_closed_unac, file='GMP_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(B_cell_closed_unac, file='B_cell_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(Mono_closed_unac, file='Mono_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(Gran_closed_unac, file='Gran_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-#closed/ac+
-write.table(MPP_closed_ac, file='MPP_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(CMP_closed_ac, file='CMP_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(GMP_closed_ac, file='GMP_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(B_cell_closed_ac, file='B_cell_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(Mono_closed_ac, file='Mono_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(Gran_closed_ac, file='Gran_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-#open/ac-
-write.table(MPP_open_unac, file='MPP_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(CMP_open_unac, file='CMP_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(GMP_open_unac, file='GMP_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(B_cell_open_unac, file='B_cell_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(Mono_open_unac, file='Mono_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(Gran_open_unac, file='Gran_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-#open/ac+
-write.table(MPP_open_ac, file='MPP_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(CMP_open_ac, file='CMP_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(GMP_open_ac, file='GMP_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(B_cell_open_ac, file='B_cell_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(Mono_open_ac, file='Mono_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-write.table(Gran_open_ac, file='Gran_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
-
-### GO term analysis of gene subsets (nearest enhancer open/closed chromatin, H3K27ac-/+) ###
-
-#add ENTREZ IDs to all genes (gene universe for GO analysis)
-enhancers_and_genes$ENTREZ <- mapIds(
-  org.Mm.eg.db,
-  keys = enhancers_and_genes$ENSEMBL,
-  keytype = "ENSEMBL",
-  column = "ENTREZID",
-  multiVals = "first"
-)
+#GO-BP enrichment analysis of gene subsets (nearest enhancer open/closed chromatin x H3K27ac-/+) ###
 
 #closed/ac-
 GO_MPP_closed_unac <- {
-  
-  MPP_closed_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = MPP_closed_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-     
+   
   gene_subset <- MPP_closed_unac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -702,14 +635,6 @@ GO_MPP_closed_unac <- {
   
 }
 GO_CMP_closed_unac <- {
-  
-  CMP_closed_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = CMP_closed_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
   
   gene_subset <- CMP_closed_unac %>% 
     as.data.frame() %>% 
@@ -735,14 +660,6 @@ GO_CMP_closed_unac <- {
 }
 GO_GMP_closed_unac <- {
   
-  GMP_closed_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = GMP_closed_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
   gene_subset <- GMP_closed_unac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -766,14 +683,6 @@ GO_GMP_closed_unac <- {
   
 }
 GO_B_cell_closed_unac <- {
-  
-  B_cell_closed_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = B_cell_closed_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
   
   gene_subset <- B_cell_closed_unac %>% 
     as.data.frame() %>% 
@@ -799,14 +708,6 @@ GO_B_cell_closed_unac <- {
 }
 GO_Mono_closed_unac <- {
   
-  Mono_closed_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = Mono_closed_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
   gene_subset <- Mono_closed_unac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -830,15 +731,7 @@ GO_Mono_closed_unac <- {
   
 }
 GO_Gran_closed_unac <- {
-  
-  Gran_closed_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = Gran_closed_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- Gran_closed_unac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -861,17 +754,10 @@ GO_Gran_closed_unac <- {
   write.table(summary(GO_run), file='Gran_closed_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
   
 }
+
 #closed/ac+
 GO_MPP_closed_ac <- {
-  
-  MPP_closed_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = MPP_closed_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- MPP_closed_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -895,15 +781,7 @@ GO_MPP_closed_ac <- {
   
 }
 GO_CMP_closed_ac <- {
-  
-  CMP_closed_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = CMP_closed_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- CMP_closed_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -927,15 +805,7 @@ GO_CMP_closed_ac <- {
   
 }
 GO_GMP_closed_ac <- {
-  
-  GMP_closed_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = GMP_closed_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- GMP_closed_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -959,15 +829,7 @@ GO_GMP_closed_ac <- {
   
 }
 GO_B_cell_closed_ac <- {
-  
-  B_cell_closed_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = B_cell_closed_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- B_cell_closed_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -991,15 +853,7 @@ GO_B_cell_closed_ac <- {
   
 }
 GO_Mono_closed_ac <- {
-  
-  Mono_closed_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = Mono_closed_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- Mono_closed_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1023,15 +877,7 @@ GO_Mono_closed_ac <- {
   
 }
 GO_Gran_closed_ac <- {
-  
-  Gran_closed_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = Gran_closed_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- Gran_closed_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1054,17 +900,10 @@ GO_Gran_closed_ac <- {
   write.table(summary(GO_run), file='Gran_closed_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
   
 }
+
 #open/ac-
 GO_MPP_open_unac <- {
-  
-  MPP_open_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = MPP_open_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- MPP_open_unac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1088,15 +927,7 @@ GO_MPP_open_unac <- {
   
 }
 GO_CMP_open_unac <- {
-  
-  CMP_open_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = CMP_open_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- CMP_open_unac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1120,15 +951,7 @@ GO_CMP_open_unac <- {
   
 }
 GO_GMP_open_unac <- {
-  
-  GMP_open_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = GMP_open_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- GMP_open_unac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1152,15 +975,7 @@ GO_GMP_open_unac <- {
   
 }
 GO_B_cell_open_unac <- {
-  
-  B_cell_open_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = B_cell_open_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- B_cell_open_unac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1184,15 +999,7 @@ GO_B_cell_open_unac <- {
   
 }
 GO_Mono_open_unac <- {
-  
-  Mono_open_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = Mono_open_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- Mono_open_unac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1216,15 +1023,7 @@ GO_Mono_open_unac <- {
   
 }
 GO_Gran_open_unac <- {
-  
-  Gran_open_unac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = Gran_open_unac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- Gran_open_unac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1247,17 +1046,10 @@ GO_Gran_open_unac <- {
   write.table(summary(GO_run), file='Gran_open_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
   
 }
+
 #open/ac+
 GO_MPP_open_ac <- {
-  
-  MPP_open_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = MPP_open_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- MPP_open_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1281,15 +1073,7 @@ GO_MPP_open_ac <- {
   
 }
 GO_CMP_open_ac <- {
-  
-  CMP_open_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = CMP_open_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- CMP_open_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1313,15 +1097,7 @@ GO_CMP_open_ac <- {
   
 }
 GO_GMP_open_ac <- {
-  
-  GMP_open_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = GMP_open_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+ 
   gene_subset <- GMP_open_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1345,15 +1121,7 @@ GO_GMP_open_ac <- {
   
 }
 GO_B_cell_open_ac <- {
-  
-  B_cell_open_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = B_cell_open_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- B_cell_open_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1377,15 +1145,7 @@ GO_B_cell_open_ac <- {
   
 }
 GO_Mono_open_ac <- {
-  
-  Mono_open_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = Mono_open_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+
   gene_subset <- Mono_open_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1409,15 +1169,7 @@ GO_Mono_open_ac <- {
   
 }
 GO_Gran_open_ac <- {
-  
-  Gran_open_ac$ENTREZ <- mapIds(
-    org.Mm.eg.db,
-    keys = Gran_open_ac$ENSEMBL,
-    keytype = "ENSEMBL",
-    column = "ENTREZID",
-    multiVals = "first"
-  )
-  
+ 
   gene_subset <- Gran_open_ac %>% 
     as.data.frame() %>% 
     pull(ENTREZ) %>% 
@@ -1440,4 +1192,3 @@ GO_Gran_open_ac <- {
   write.table(summary(GO_run), file='Gran_open_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
   
 }
-
