@@ -1,3 +1,40 @@
+#################################################################################################
+
+#Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
+#Authors: Melanie Law, Helena Sokolovska, Andrew Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
+#Date: Sept 2, 2022
+
+#-----------------------------------------------------------------------------------------------
+
+#Purpose of entire script:
+
+#DESeq2 differential RNA expression analysis for each cell type, relative to MPP
+
+#Preparing list of all enhancers for nearest gene association in GREAT
+#Gene-enhancer association for all enhancers, in GREAT
+#Combining gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
+
+#Preparing list of enhancers that are closed/ac+ in MPP, for nearest gene association in GREAT
+#Gene-enhancer association for enhancers that are closed/ac+ in MPP, in GREAT
+#Combining (closed/ac+ in MPP) gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
+
+#Take (closed/ac+ in MPP) genes, and filter for only significantly upregulated genes in each cell type (log2foldchange > 1 relative to MPP)
+#GO-BP enrichment analysis:
+  #upregulated genes (relative to MPP) associated with closed/ac+ enhancers in MPP, and compared to all genes associated with closed/ac+ enhancers in MPP
+  
+#Filtering for closed/ac+ enhancers in each cell type
+  #+ genes in top quantile of TPM expression for each subset
+#GO-BP enrichment analysis:
+  #top quantile of TPM expression for closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
+
+#Filtering gene subsets by nearest enhancer status (open/closed chromatin x H3K27ac-/+)
+#GO-BP enrichment analysis:
+  #closed/ac- enhancers in each cell type, and compared to all enhancer-associated genes
+  #closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
+  #open/ac- enhancers in each cell type, and compared to all enhancer-associated genes
+  #open/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
+
+#-----------------------------------------------------------------------------------------------
 
 #Inputs:
 #C:/Users/Helena/405_Linux_outputs/HTSeq/samples.csv (download from R folder on Github)
@@ -6,6 +43,8 @@
 #C:/Users/Helena/405_Linux_outputs/mpp_acet_closed_great.txt (lines 82-84 in script: input file into GREAT, download output, rename file)
 #C:/Users/Helena/405_Linux_outputs/single_closest_gene.txt (lines 179-181 in script: input file into GREAT, download output, rename file)
 #C:/Users/Helena/405_Linux_outputs/enhancer_gene_map.txt 
+
+#################################################################################################
 
 
 
@@ -74,8 +113,8 @@ write.table(res_Mono_vs_MPP, file = 'Mono_vs_MPP_all.txt', sep = '\t', col.names
 ########### Associating genes (and gene expression) with enhancers using data from GREAT, for all enhancers ########### 
 
 #Purpose:
-#Preparing list of enhancers for nearest gene association in GREAT
-#Gene-enhancer association in GREAT
+#Preparing list of all enhancers for nearest gene association in GREAT
+#Gene-enhancer association for all enhancers, in GREAT
 #Combining gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
 
 enhancers <-  read.table(file = 'enhancers_status.tsv',
@@ -171,7 +210,7 @@ write_tsv(summary_narm, "closest_gene_expression_narm.tsv", col_names = TRUE)
 
 #Purpose:
 #Preparing list of enhancers that are closed/ac+ in MPP, for nearest gene association in GREAT
-#Gene-enhancer association in GREAT
+#Gene-enhancer association for enhancers that are closed/ac+ in MPP, in GREAT
 #Combining (closed/ac+ in MPP) gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
 
 enhancers <-  read.table(file = 'enhancers_status.tsv',
