@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-# MICB 405: Group 8
-# STAR (RNA alignment) and HTSeq (determining reads/gene)
-# Dec 7, 2021
+#Purpose:
+#STAR (RNA alignment) and HTSeq (determining reads/gene)
 
 mkdir /projects/micb405/analysis/GROUP8/star && cd /projects/micb405/analysis/GROUP8/star
 mkdir STARIndex
