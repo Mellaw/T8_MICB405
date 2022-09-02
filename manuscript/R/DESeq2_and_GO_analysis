@@ -3,13 +3,16 @@
 #C:/Users/Helena/405_Linux_outputs/HTSeq/samples.csv (download from R folder on Github)
 #C:/Users/Helena/405_Linux_outputs/HTSeq/*.htseq.out (export 22 .htseq.out files from STAR_and_HTSeq.sh in bash folder on Github)
 #C:/Users/Helena/405_Linux_outputs/enhancers_status.tsv (export from assign_enhancer_status.py script in python folder on Github)
-#C:/Users/Helena/405_Linux_outputs/mpp_acet_closed_great.txt (download from GREAT after analysis in line ____________________________)
-#C:/Users/Helena/405_Linux_outputs/single_closest_gene.txt (download from GREAT after analysis in line ____________________________)
+#C:/Users/Helena/405_Linux_outputs/mpp_acet_closed_great.txt (lines 82-84 in script: input file into GREAT, download output, rename file)
+#C:/Users/Helena/405_Linux_outputs/single_closest_gene.txt (lines 179-181 in script: input file into GREAT, download output, rename file)
 #C:/Users/Helena/405_Linux_outputs/enhancer_gene_map.txt 
 
 
 
-########### DESeq2 RNA expression analysis following STAR/HTSeq ########### 
+########### DESeq2 differential RNA expression analysis following STAR/HTSeq ########### 
+
+#Purpose:
+#DESeq2 differential RNA expression analysis for each cell type, relative to MPP
 
 #load necessary packages
 library(DESeq2)
@@ -65,10 +68,111 @@ write.table(res_CMP_vs_MPP, file = 'CMP_vs_MPP_all.txt', sep = '\t', col.names =
 write.table(res_GMP_vs_MPP, file = 'GMP_vs_MPP_all.txt', sep = '\t', col.names = TRUE)
 write.table(res_Gran_vs_MPP, file = 'Gran_vs_MPP_all.txt', sep = '\t', col.names = TRUE)
 write.table(res_Mono_vs_MPP, file = 'Mono_vs_MPP_all.txt', sep = '\t', col.names = TRUE)
+
+
+
+########### Associating genes (and gene expression) with enhancers using data from GREAT, for all enhancers ########### 
+
+#Purpose:
+#Preparing list of enhancers for nearest gene association in GREAT
+#Gene-enhancer association in GREAT
+#Combining gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
+
+enhancers <-  read.table(file = 'enhancers_status.tsv',
+                         sep = '\t', header = TRUE)
+
+enhancers_great <- enhancers %>% 
+  select(chr, start, end, enhancer)
+
+#export enhancers as .bed for visualization in GREAT 
+write_tsv(enhancers_great, "enhancers_great.bed", col_names = FALSE)
+
+#input enhancers_great.bed file into GREAT to associate nearest genes to enhancers
+#download single_closest_gene.txt output from GREAT to C:/Users/Helena/405_Linux_outputs/
+#rename single_closest_gene.txt as enhancers_great.txt
+
+#filter gene-enhancer table from GREAT
+
+great <- read.table(file = 'enhancers_great.txt',
+                    sep = '\t', header = FALSE)
+colnames(great)<- c("enhancer", "gene_dist")
+
+gene_dist <- great %>% 
+  mutate(gene_ls = strsplit(gene_dist, split = " ", fixed =TRUE))
+
+gene_dist_ls <- gene_dist$gene_ls
+
+index <- 1:388
+gene_nm <- c()
+bp_dist <- c()
+
+for (i in index) {
+  gene_nm <- append(gene_nm, unlist(gene_dist_ls[i])[1])
+}
+
+for (i in index) {
+  bp_dist <- append(bp_dist, unlist(gene_dist_ls[i])[2])
+}
+
+gene_dist$gene = gene_nm
+gene_dist$bp_dist = bp_dist
+gene_dist <- gene_dist %>% 
+  select(-c("gene_ls"))
+
+#import DESeq2 results
+bcell <- read.table(file = 'Bcell_vs_MPP_all.txt', sep = '\t', header = TRUE)
+cmp <- read.table(file = 'CMP_vs_MPP_all.txt', sep = '\t', header = TRUE)
+gmp <- read.table(file = 'GMP_vs_MPP_all.txt', sep = '\t', header = TRUE)
+gran <- read.table(file = 'Gran_vs_MPP_all.txt', sep = '\t', header = TRUE)
+
+colnames(bcell) <- c("gene", "baseMean", "bcell_log2fold", "lfcSE", "stat",
+                    "pvalue", "bcell_padj")
+colnames(cmp) <- c("gene", "baseMean", "cmp_log2fold", "lfcSE", "stat",
+                   "pvalue", "cmp_padj")
+colnames(gmp) <- c("gene", "baseMean", "gmp_log2fold", "lfcSE", "stat",
+                   "pvalue", "gmp_padj")
+colnames(gran) <- c("gene", "baseMean", "gran_log2fold", "lfcSE", "stat",
+                    "pvalue", "gran_padj")
+
+#filter for desired columns from DESeq2 analysis
+
+bcell_sub <- bcell %>% 
+  filter(gene %in% gene_nm) %>% 
+  select(gene, bcell_log2fold, bcell_padj)
+
+cmp_sub <- cmp %>% 
+  filter(gene %in% gene_nm) %>% 
+  select(gene, cmp_log2fold, cmp_padj)
+
+gmp_sub <- gmp %>% 
+  filter(gene %in% gene_nm) %>% 
+  select(gene, gmp_log2fold, gmp_padj)
+
+gran_sub <- gran %>% 
+  filter(gene %in% gene_nm) %>% 
+  select(gene, gran_log2fold, gran_padj)
+
+#merge DESeq2 results with gene & enhancer table 
+gene_dist = merge(gene_dist, bcell_sub, by = "gene", all.x = TRUE)
+gene_dist = merge(gene_dist, cmp_sub, by = "gene", all.x = TRUE)
+gene_dist = merge(gene_dist, gmp_sub, by = "gene", all.x = TRUE)
+gene_dist = merge(gene_dist, gran_sub, by = "gene", all.x = TRUE)
+
+gene_dist <- gene_dist %>% 
+  select(-c(gene_dist))
+
+summary_narm <- na.omit(gene_dist)
+
+write_tsv(summary_narm, "closest_gene_expression_narm.tsv", col_names = TRUE)
+
+
   
-  
-  
-########### Associating genes (and gene expression) with enhancer data, for closed/ac+ enhancers in MPP ########### 
+########### Associating genes (and gene expression) with enhancers using data from GREAT, for closed/ac+ enhancers in MPP ########### 
+
+#Purpose:
+#Preparing list of enhancers that are closed/ac+ in MPP, for nearest gene association in GREAT
+#Gene-enhancer association in GREAT
+#Combining (closed/ac+ in MPP) gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
 
 enhancers <-  read.table(file = 'enhancers_status.tsv',
                          sep = '\t', header = TRUE)
@@ -85,7 +189,11 @@ mpp_acet_closed_great <-  mpp_acet_closed %>%
 #export enhancers as .bed for visualization in GREAT 
 write_tsv(mpp_acet_closed_great, "mpp_acet_closed_great.bed", col_names = FALSE)
 
-#filter closed/ac enhancers in MPP from GREAT
+#input mpp_acet_closed_great.bed file into GREAT to associate nearest genes to enhancers
+#download single_closest_gene.txt output from GREAT to C:/Users/Helena/405_Linux_outputs/
+#rename single_closest_gene.txt as mpp_acet_closed_great.txt
+
+#filter (closed/ac+ in MPP) gene-enhancer table from GREAT
 
 great <- read.table(file = 'mpp_acet_closed_great.txt',
                     sep = '\t', header = FALSE)
@@ -164,7 +272,12 @@ write_tsv(summary_narm, "closest_gene_expression_closed_ac_MPP_narm.tsv", col_na
 
 ########### GO-BP enrichment analysis of upregulated genes (relative to MPP) associated with closed/ac+ enhancers in MPP, and compared to all genes associated with closed/ac+ enhancers in MPP  ########### 
 
-#assign closed/ac+ MPP genes identified in GREAT to a variable
+#Purpose:
+#Take (closed/ac+ in MPP) genes, and filter for only significantly upregulated genes in each cell type (log2foldchange > 1 relative to MPP)
+#GO-BP enrichment analysis:
+  #upregulated genes (relative to MPP) associated with closed/ac+ enhancers in MPP, and compared to all genes associated with closed/ac+ enhancers in MPP
+
+#assign (closed/ac+ in MPP) genes identified in GREAT to a variable
 file_closed_ac_MPP <- read_tsv("closest_gene_expression_closed_ac_MPP_narm.tsv")
 file_closed_ac_MPP
 
@@ -313,6 +426,12 @@ write.csv(summary(go_bp_upregulated), file = "GOupsignificant_res_Mono.csv")
 
 
 ########### GO-BP enrichment analysis of highest expressed (top TPM quantile) closed/ac+ enhancer-associated genes, relative to all enhancer-associated genes ########### 
+
+#Purpose:
+#Filtering for closed/ac+ enhancers in each cell type
+  #+ genes in top quantile of TPM expression for each subset
+#GO-BP enrichment analysis:
+  #top quantile of TPM expression for closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
 
 #import enhancer + nearest gene data tables
 enhancer_status <- read.table(file = 'enhancers_status.tsv', sep = '\t', header = TRUE)
@@ -534,15 +653,16 @@ GO_Gran_closed_ac_top_quantile <- {
 }
 
 
-########### GO-BP enrichment analysis for each enhancer class (open/closed chromatin x H3K27ac-/+) ###########
+########### GO-BP enrichment analysis for genes associated with each enhancer class (open/closed chromatin x H3K27ac-/+) ###########
 
 #Purpose:
-#Filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+)
-  # + highest/lowest RNA expression in each subset
-#Writing gene subset catalogues
-#GO term analysis of gene subsets
-#Extracting genes from GO runs of interest
-
+#Filtering gene subsets by nearest enhancer status (open/closed chromatin x H3K27ac-/+)
+#GO-BP enrichment analysis:
+  #closed/ac- enhancers in each cell type, and compared to all enhancer-associated genes
+  #closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
+  #open/ac- enhancers in each cell type, and compared to all enhancer-associated genes
+  #open/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
+  
 library(DESeq2)
 library(tidyverse)
 library(dplyr)
