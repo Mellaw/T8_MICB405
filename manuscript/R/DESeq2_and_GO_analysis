@@ -1,0 +1,1443 @@
+########### DESeq2 RNA expression analysis following STAR/HTSeq ########### 
+
+#load necessary packages
+library(DESeq2)
+library(dplyr)
+library(tidyverse)
+library(pheatmap)
+library(RColorBrewer)
+library(AnnotationDbi)
+library(org.Mm.eg.db)
+library(GO.db)
+library(GOstats)
+
+dir <- "HTSeq"
+
+# assign file path to a variable
+sample_metadata <- read_csv(file.path(dir, "samples.csv"))
+sample_metadata
+
+# assign HTSeq files to a variable
+files <- file.path(dir, sample_metadata$sample)
+files
+
+# create a new data table with the variables sampleName, fileName and cell_type
+sample_df <- data.frame(sampleName = sample_metadata$column1,
+                        fileName = files,
+                        condition = sample_metadata$cell_type,
+                        run = sample_metadata$run)
+
+ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = sample_df,
+                                       design = ~ condition)
+
+# set control condition (MPP) using the relevel function
+ddsHTSeq$condition <- relevel(ddsHTSeq$condition, ref = "MPP")
+
+# run DESeq on ddsHTSeq
+dds <- DESeq(ddsHTSeq)
+
+# print and write table for DESeq2 results
+
+all.names <-  results(dds)
+res_Bcell_vs_MPP <- results(dds, name = "condition_Bcell_vs_MPP")
+res_CMP_vs_MPP <- results(dds, name = "condition_CMP_vs_MPP")
+res_GMP_vs_MPP <- results(dds, name = "condition_GMP_vs_MPP")
+res_Gran_vs_MPP <- results(dds, name = "condition_Gran_vs_MPP")
+res_Mono_vs_MPP <- results(dds, name = "condition_Mono_vs_MPP")
+
+write.table(res_Bcell_vs_MPP, file = 'Bcell_vs_MPP_all.txt', sep = '\t', col.names = TRUE)
+write.table(res_CMP_vs_MPP, file = 'CMP_vs_MPP_all.txt', sep = '\t', col.names = TRUE)
+write.table(res_GMP_vs_MPP, file = 'GMP_vs_MPP_all.txt', sep = '\t', col.names = TRUE)
+write.table(res_Gran_vs_MPP, file = 'Gran_vs_MPP_all.txt', sep = '\t', col.names = TRUE)
+write.table(res_Mono_vs_MPP, file = 'Mono_vs_MPP_all.txt', sep = '\t', col.names = TRUE)
+  
+  
+  
+########### Combining gene expression data with enhancer data, for closed/ac enhancers in MPP ########### 
+
+# libraries  --------------------------------------------------------------
+library(tidyverse)
+library(dplyr)
+
+enhancers <-  read.table(file = 'rna_align/enhancers_status.tsv',
+                         sep = '\t', header = TRUE)
+                         
+# Subset enhancers by closed/ac in MPP --------------------------------------------------------
+
+mpp_acet_closed <- enhancers %>% 
+  filter(MPP_atac_significant == 0 &
+           MPP_ac_significant == 1)
+
+mpp_acet_closed_great <-  mpp_acet_closed %>% 
+  select(chr, start, end, enhancer)
+
+#Export enhancers as .bed for visualization in GREAT 
+write_tsv(mpp_acet_closed_great, "./rna_align/mpp_acet_closed_great.bed", col_names = FALSE)
+
+# Filter closed/ac enhancers in MPP from GREAT ---------------------------------------------------------
+
+great <- read.table(file = 'mpp_acet_closed_great.txt',
+                    sep = '\t', header = FALSE)
+colnames(great)<- c("enhancer", "gene_dist")
+
+gene_dist <- great %>% 
+  mutate(gene_ls = strsplit(gene_dist, split = " ", fixed =TRUE))
+
+gene_dist_ls <- gene_dist$gene_ls
+
+index <- 1:388
+gene_nm <- c()
+bp_dist <- c()
+
+for (i in index) {
+  gene_nm <- append(gene_nm, unlist(gene_dist_ls[i])[1])
+}
+
+for (i in index) {
+  bp_dist <- append(bp_dist, unlist(gene_dist_ls[i])[2])
+}
+
+gene_dist$gene = gene_nm
+gene_dist$bp_dist = bp_dist
+gene_dist <- gene_dist %>% 
+  select(-c("gene_ls"))
+
+# Filter lineages ---------------------------------------------------------
+bcell <- read.table(file = 'Bcell_vs_MPP_all.txt', sep = '\t', header = TRUE)
+cmp <- read.table(file = 'CMP_vs_MPP_all.txt', sep = '\t', header = TRUE)
+gmp <- read.table(file = 'GMP_vs_MPP_all.txt', sep = '\t', header = TRUE)
+gran <- read.table(file = 'Gran_vs_MPP_all.txt', sep = '\t', header = TRUE)
+
+
+colnames(bcell) <- c("gene", "baseMean", "bcell_log2fold", "lfcSE", "stat",
+                    "pvalue", "bcell_padj")
+colnames(cmp) <- c("gene", "baseMean", "cmp_log2fold", "lfcSE", "stat",
+                   "pvalue", "cmp_padj")
+colnames(gmp) <- c("gene", "baseMean", "gmp_log2fold", "lfcSE", "stat",
+                   "pvalue", "gmp_padj")
+colnames(gran) <- c("gene", "baseMean", "gran_log2fold", "lfcSE", "stat",
+                    "pvalue", "gran_padj")
+
+#Filter cell lineages for desired columns from DESeq2 analysis
+
+bcell_sub <- bcell %>% 
+  filter(gene %in% gene_nm) %>% 
+  select(gene, bcell_log2fold, bcell_padj)
+
+cmp_sub <- cmp %>% 
+  filter(gene %in% gene_nm) %>% 
+  select(gene, cmp_log2fold, cmp_padj)
+
+gmp_sub <- gmp %>% 
+  filter(gene %in% gene_nm) %>% 
+  select(gene, gmp_log2fold, gmp_padj)
+
+gran_sub <- gran %>% 
+  filter(gene %in% gene_nm) %>% 
+  select(gene, gran_log2fold, gran_padj)
+
+#Merge cell lineage information with gene & enhancer table 
+gene_dist = merge(gene_dist, bcell_sub, by = "gene", all.x = TRUE)
+gene_dist = merge(gene_dist, cmp_sub, by = "gene", all.x = TRUE)
+gene_dist = merge(gene_dist, gmp_sub, by = "gene", all.x = TRUE)
+gene_dist = merge(gene_dist, gran_sub, by = "gene", all.x = TRUE)
+
+gene_dist <- gene_dist %>% 
+  select(-c(gene_dist))
+
+summary_narm <- na.omit(gene_dist)
+
+write_tsv(summary_narm, "closest_gene_expression_closed_ac_MPP_narm.tsv", col_names = TRUE)
+
+
+
+########### GO analysis of closed/ac in MPP following STAR/HTSeq ########### 
+
+# assign closed acetylated MPP genes identified in GREAT to a variable
+file_closed_ac_MPP <- read_tsv("closest_gene_expression_closed_ac_MPP_narm.tsv")
+file_closed_ac_MPP
+
+# create a new data frame to contain the enhancer files
+sample_df <- data.frame(file_closed_ac_MPP)
+
+#add ENSEMBL id's
+sample_df$ensembl <- mapIds(
+  org.Mm.eg.db,
+  keys = sample_df$gene,
+  keytype = "SYMBOL",
+  column = "ENSEMBL",
+  multiVals = "first"
+)
+
+#add ENTREZ ids
+sample_df$entrez <- mapIds(
+  org.Mm.eg.db,
+  keys = sample_df$ensembl,
+  keytype = "ENSEMBL",
+  column = "ENTREZID",
+  multiVals = "first"
+)
+
+#create a list of all unique genes
+all_genes_enhancers <- sample_df %>% 
+  as.data.frame() %>% 
+  pull(entrez) %>% 
+  unique()
+
+# subset out only differentially abundant genes
+significant_res_Bcell <- subset(sample_df, bcell_padj < 0.05)
+write_csv(as.data.frame(significant_res_Bcell), file = "Bcell_vs_MPP_05_Enhancer.csv")
+
+significant_res_CMP <- subset(sample_df, cmp_padj< 0.05)
+write_csv(as.data.frame(significant_res_CMP), file = "CMP_vs_MPP_05_Enhancer.csv")
+
+significant_res_GMP <- subset(sample_df, gmp_padj< 0.05)
+write_csv(as.data.frame(significant_res_GMP), file = "GMP_vs_MPP_05_Enhancer.csv")
+
+significant_res_Gran <- subset(sample_df, gran_padj < 0.05)
+write_csv(as.data.frame(significant_res_Gran), file = "Gran_vs_MPP_05_Enhancer.csv")
+
+significant_res_Mono <- subset(sample_df, mono_padj < 0.05)
+write_csv(as.data.frame(significant_res_Mono), file = "Mono_vs_MPP_05_Enhancer.csv")
+
+#subset by log2fold change for each cell type
+genes_upregulated_bcell <- significant_res_Bcell %>% 
+  as.data.frame() %>% 
+  filter(bcell_log2fold > 1) %>%  
+  pull(entrez) %>% 
+  unique()
+
+write_csv(as.data.frame(genes_upregulated_bcell), file = "Bcell_vs_MPP_05_1_Enhancer.csv")
+
+genes_upregulated_cmp <- significant_res_CMP %>% 
+  as.data.frame() %>% 
+  filter(cmp_log2fold > 1) %>% 
+  pull(entrez) %>% 
+  unique()
+
+write_csv(as.data.frame(genes_upregulated_cmp), file = "CMP_vs_MPP_05_1_Enhancer.csv")
+
+genes_upregulated_gmp <- significant_res_GMP %>% 
+  as.data.frame() %>% 
+  filter(gmp_log2fold > 1) %>% 
+  pull(entrez) %>% 
+  unique()
+
+write_csv(as.data.frame(genes_upregulated_gmp), file = "GMP_vs_MPP_05_1_Enhancer.csv")
+
+genes_upregulated_gran <- significant_res_Gran %>% 
+  as.data.frame() %>% 
+  filter(gran_log2fold > 1) %>% 
+  pull(entrez) %>% 
+  unique()
+
+write_csv(as.data.frame(genes_upregulated_gran), file = "Gran_vs_MPP_05_1_Enhancer.csv")
+
+genes_upregulated_mono <- significant_res_Mono %>% 
+  as.data.frame() %>% 
+  filter(mono_log2fold > 1) %>% 
+  pull(entrez) %>% 
+  unique()
+
+write_csv(as.data.frame(genes_upregulated_mono), file = "Mono_vs_MPP_05_1_Enhancer.csv")
+
+#create hypergtest object for each cell type and print to file
+go_bp_upregulated <- hyperGTest(new("GOHyperGParams",
+                                    geneIds = genes_upregulated_bcell,
+                                    universeGeneIds = all_genes_enhancers,
+                                    annotation = "org.Mm.eg.db",
+                                    ontology = "BP",
+                                    pvalueCutoff = 0.05,
+                                    conditional = FALSE,
+                                    testDirection = "over"))
+go_bp_upregulated %>% summary() %>% head(10)
+write.csv(summary(go_bp_upregulated), file = "GOupsignificant_res_Bcell.csv")
+
+go_bp_upregulated <- hyperGTest(new("GOHyperGParams",
+                                    geneIds = genes_upregulated_cmp,
+                                    universeGeneIds = all_genes_enhancers,
+                                    annotation = "org.Mm.eg.db",
+                                    ontology = "BP",
+                                    pvalueCutoff = 0.05,
+                                    conditional = FALSE,
+                                    testDirection = "over"))
+go_bp_upregulated %>% summary() %>% head(10)
+write.csv(summary(go_bp_upregulated), file = "GOupsignificant_res_CMP.csv")
+          
+go_bp_upregulated <- hyperGTest(new("GOHyperGParams",
+                                    geneIds = genes_upregulated_gmp,
+                                    universeGeneIds = all_genes_enhancers,
+                                    annotation = "org.Mm.eg.db",
+                                    ontology = "BP",
+                                    pvalueCutoff = 0.05,
+                                    conditional = FALSE,
+                                    testDirection = "over"))
+go_bp_upregulated %>% summary() %>% head(10)
+write.csv(summary(go_bp_upregulated), file = "GOupsignificant_res_GMP.csv")
+
+go_bp_upregulated <- hyperGTest(new("GOHyperGParams",
+                                    geneIds = genes_upregulated_gran,
+                                    universeGeneIds = all_genes_enhancers,
+                                    annotation = "org.Mm.eg.db",
+                                    ontology = "BP",
+                                    pvalueCutoff = 0.05,
+                                    conditional = FALSE,
+                                    testDirection = "over"))
+go_bp_upregulated %>% summary() %>% head(10)
+write.csv(summary(go_bp_upregulated), file = "GOupsignificant_res_Gran.csv")
+
+go_bp_upregulated <- hyperGTest(new("GOHyperGParams",
+                                    geneIds = genes_upregulated_mono,
+                                    universeGeneIds = all_genes_enhancers,
+                                    annotation = "org.Mm.eg.db",
+                                    ontology = "BP",
+                                    pvalueCutoff = 0.05,
+                                    conditional = FALSE,
+                                    testDirection = "over"))
+go_bp_upregulated %>% summary() %>% head(10)
+write.csv(summary(go_bp_upregulated), file = "GOupsignificant_res_Mono.csv")
+
+
+
+########### GO analysis of closed/ac+ enhancer-associated genes in top quantile of TPM data, relative to all enhancer-associated genes ########### 
+
+#import enhancer + nearest gene data tables
+enhancer_status <- read.table(file = 'enhancers_status.tsv', sep = '\t', header = TRUE)
+enhancer_gene_map <- read.table(file = 'enhancer_gene_map.txt', sep = '\t', header = TRUE)
+
+#import expression data
+MPP_TPM <- read.table(file = 'MPP_geneExpression.tsv', sep = '\t')
+colnames(MPP_TPM) <- c("ENSEMBL", "gene", "MPP_TPM")
+CMP_TPM <- read.table(file = 'CMP_geneExpression.tsv', sep = '\t')
+colnames(CMP_TPM) <- c("ENSEMBL", "gene", "CMP_TPM")
+GMP_TPM <- read.table(file = 'GMP_geneExpression.tsv', sep = '\t')
+colnames(GMP_TPM) <- c("ENSEMBL", "gene", "GMP_TPM")
+B_cell_TPM <- read.table(file = 'Bcell_geneExpression.tsv', sep = '\t')
+colnames(B_cell_TPM) <- c("ENSEMBL", "gene", "B_cell_TPM")
+Mono_TPM <- read.table(file = 'Mono_geneExpression.tsv', sep = '\t')
+colnames(Mono_TPM) <- c("ENSEMBL", "gene", "Mono_TPM")
+Gran_TPM <- read.table(file = 'Gran_geneExpression.tsv', sep = '\t')
+colnames(Gran_TPM) <- c("ENSEMBL", "gene", "Gran_TPM")
+
+#merge enhancers + nearest genes
+enhancer_status_with_genes <- merge(enhancer_gene_map, enhancer_status, by="enhancer")
+
+#table clean-up
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes, MPP_TPM, by="gene", all.x = TRUE)
+enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, CMP_TPM, by="gene", all.x = TRUE)
+enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, GMP_TPM, by="gene", all.x = TRUE)
+enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, B_cell_TPM, by="gene", all.x = TRUE)
+enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, Mono_TPM, by="gene", all.x = TRUE)
+enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, Gran_TPM, by="gene", all.x = TRUE)
+enhancers_and_genes <- relocate(enhancer_status_with_genes_ensembl, ENSEMBL, .before = "gene")
+
+write.table(enhancers_and_genes, file = "enhancer_status_with_genes_and_expression.tsv", quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+
+#add ENTREZ IDs to all genes (gene universe for GO analysis)
+enhancers_and_genes$ENTREZ <- mapIds(
+  org.Mm.eg.db,
+  keys = enhancers_and_genes$ENSEMBL,
+  keytype = "ENSEMBL",
+  column = "ENTREZID",
+  multiVals = "first"
+)
+
+# filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+) #
+
+#closed/ac+
+MPP_closed_ac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 1)
+CMP_closed_ac <- filter(enhancers_and_genes, CMP_atac_significant == 0, CMP_ac_significant == 1)
+GMP_closed_ac <- filter(enhancers_and_genes, GMP_atac_significant == 0, GMP_ac_significant == 1)
+B_cell_closed_ac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bcell_ac_significant == 1)
+Mono_closed_ac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 1)
+Gran_closed_ac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 1)
+
+#extract top quantile of gene expression in each subset
+
+#closed/ac+
+MPP_closed_ac_TPM_quantiles <- quantile(MPP_closed_ac$MPP_TPM, na.rm = TRUE)
+MPP_closed_ac_top_quantile <- subset(MPP_closed_ac, MPP_TPM >= MPP_closed_ac_TPM_quantiles[4])
+CMP_closed_ac_TPM_quantiles <- quantile(CMP_closed_ac$CMP_TPM, na.rm = TRUE)
+CMP_closed_ac_top_quantile <- subset(CMP_closed_ac, CMP_TPM >= CMP_closed_ac_TPM_quantiles[4])
+GMP_closed_ac_TPM_quantiles <- quantile(GMP_closed_ac$GMP_TPM, na.rm = TRUE)
+GMP_closed_ac_top_quantile <- subset(GMP_closed_ac, GMP_TPM >= GMP_closed_ac_TPM_quantiles[4])
+B_cell_closed_ac_TPM_quantiles <- quantile(B_cell_closed_ac$B_cell_TPM, na.rm = TRUE)
+B_cell_closed_ac_top_quantile <- subset(B_cell_closed_ac, B_cell_TPM >= B_cell_closed_ac_TPM_quantiles[4])
+Mono_closed_ac_TPM_quantiles <- quantile(Mono_closed_ac$Mono_TPM, na.rm = TRUE)
+Mono_closed_ac_top_quantile <- subset(Mono_closed_ac, Mono_TPM >= Mono_closed_ac_TPM_quantiles[4])
+Gran_closed_ac_TPM_quantiles <- quantile(Gran_closed_ac$Gran_TPM, na.rm = TRUE)
+Gran_closed_ac_top_quantile <- subset(Gran_closed_ac, Gran_TPM >= Gran_closed_ac_TPM_quantiles[4])
+
+# GO analysis #
+
+GO_MPP_closed_ac_top_quantile <- {
+  
+  gene_subset <- MPP_closed_ac_top_quantile %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='MPP_closed_ac_top_quantile_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_CMP_closed_ac_top_quantile <- {
+  
+  gene_subset <- CMP_closed_ac_top_quantile %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='CMP_closed_ac_top_quantile_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_GMP_closed_ac_top_quantile <- {
+  
+  gene_subset <- GMP_closed_ac_top_quantile %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='GMP_closed_ac_top_quantile_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_B_cell_closed_ac_top_quantile <- {
+  
+  gene_subset <- B_cell_closed_ac_top_quantile %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='B_cell_closed_ac_top_quantile_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_Mono_closed_ac_top_quantile <- {
+  
+  gene_subset <- Mono_closed_ac_top_quantile %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='Mono_closed_ac_top_quantile_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_Gran_closed_ac_top_quantile <- {
+  
+  gene_subset <- Gran_closed_ac_top_quantile %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='Gran_closed_ac_top_quantile_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+
+
+
+
+#Purpose:
+#Filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+)
+  # + highest/lowest RNA expression in each subset
+#Writing gene subset catalogues
+#GO term analysis of gene subsets
+#Extracting genes from GO runs of interest
+
+library(DESeq2)
+library(tidyverse)
+library(dplyr)
+library(pheatmap)
+library(RColorBrewer)
+library(AnnotationDbi)
+library(org.Mm.eg.db)
+library(GO.db)
+library(GOstats)
+library(topGO)
+library(xlsx)
+
+setwd("/Users/Helena/405_Linux_outputs/")
+
+#import enhancer + nearest gene data tables
+enhancer_status <- read.table(file = 'enhancers_status.tsv', sep = '\t', header = TRUE)
+enhancer_gene_map <- read.table(file = 'enhancer_gene_map.txt', sep = '\t', header = TRUE)
+
+#import expression data
+MPP_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/MPP_geneExpression.tsv', sep = '\t', header = TRUE)
+CMP_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/CMP_geneExpression.tsv', sep = '\t', header = TRUE)
+GMP_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/GMP_geneExpression.tsv', sep = '\t', header = TRUE)
+B_cell_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/Bcell_geneExpression.tsv', sep = '\t', header = TRUE)
+Mono_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/Mono_geneExpression.tsv', sep = '\t', header = TRUE)
+Gran_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/Gran_geneExpression.tsv', sep = '\t', header = TRUE)
+
+#merge enhancers + nearest genes
+enhancer_status_with_genes <- merge(enhancer_gene_map, enhancer_status, by="enhancer")
+
+#merge with ENSEMBL IDs + expression data
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes, MPP_TPM, by="gene", all.x = TRUE)
+enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, CMP_TPM, by="gene", all.x = TRUE)
+enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, GMP_TPM, by="gene", all.x = TRUE)
+enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, B_cell_TPM, by="gene", all.x = TRUE)
+enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, Mono_TPM, by="gene", all.x = TRUE)
+enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
+enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, Gran_TPM, by="gene", all.x = TRUE)
+
+enhancers_and_genes <- relocate(enhancer_status_with_genes_ensembl, ENSEMBL, .before = "gene")
+
+write.table(enhancers_and_genes, file = "enhancer_status_with_genes_and_expression.tsv", quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+
+### filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+) ###
+
+"%nin" = Negate("%in%")
+
+#closed/ac+
+MPP_closed_ac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 1)
+CMP_closed_ac <- filter(enhancers_and_genes, CMP_atac_significant == 0, CMP_ac_significant == 1)
+GMP_closed_ac <- filter(enhancers_and_genes, GMP_atac_significant == 0, GMP_ac_significant == 1)
+B_cell_closed_ac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bcell_ac_significant == 1)
+Mono_closed_ac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 1)
+Gran_closed_ac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 1)
+
+#closed/ac-
+MPP_closed_ac_unique <- filter(MPP_closed_ac, !duplicated(MPP_closed_ac["gene"]))
+CMP_closed_ac_unique <- filter(CMP_closed_ac, !duplicated(CMP_closed_ac["gene"]))
+GMP_closed_ac_unique <- filter(GMP_closed_ac, !duplicated(GMP_closed_ac["gene"]))
+B_cell_closed_ac_unique <- filter(B_cell_closed_ac, !duplicated(B_cell_closed_ac["gene"]))
+Mono_closed_ac_unique <- filter(Mono_closed_ac, !duplicated(Mono_closed_ac["gene"]))
+Gran_closed_ac_unique <- filter(Gran_closed_ac, !duplicated(Gran_closed_ac["gene"]))
+
+MPP_closed_unac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 0, gene %nin% MPP_closed_ac_unique$gene)
+CMP_closed_unac <- filter(enhancers_and_genes, CMP_atac_significant == 0, CMP_ac_significant == 0, gene %nin% CMP_closed_ac_unique$gene)
+GMP_closed_unac <- filter(enhancers_and_genes, GMP_atac_significant == 0, GMP_ac_significant == 0, gene %nin% GMP_closed_ac_unique$gene)
+B_cell_closed_unac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bcell_ac_significant == 0, gene %nin% B_cell_closed_ac_unique$gene)
+Mono_closed_unac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 0, gene %nin% Mono_closed_ac_unique$gene)
+Gran_closed_unac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 0, gene %nin% Gran_closed_ac_unique$gene)
+
+#open/ac+
+MPP_open_ac <- filter(enhancers_and_genes, MPP_atac_significant == 1, MPP_ac_significant == 1)
+CMP_open_ac <- filter(enhancers_and_genes, CMP_atac_significant == 1, CMP_ac_significant == 1)
+GMP_open_ac <- filter(enhancers_and_genes, GMP_atac_significant == 1, GMP_ac_significant == 1)
+B_cell_open_ac <- filter(enhancers_and_genes, Bcell_atac_significant == 1, Bcell_ac_significant == 1)
+Mono_open_ac <- filter(enhancers_and_genes, Mono_atac_significant == 1, Mono_ac_significant == 1)
+Gran_open_ac <- filter(enhancers_and_genes, Gran_atac_significant == 1, Gran_ac_significant == 1)
+
+#open/ac-
+MPP_open_ac_unique <- filter(MPP_open_ac, !duplicated(MPP_open_ac["gene"]))
+CMP_open_ac_unique <- filter(CMP_open_ac, !duplicated(CMP_open_ac["gene"]))
+GMP_open_ac_unique <- filter(GMP_open_ac, !duplicated(GMP_open_ac["gene"]))
+B_cell_open_ac_unique <- filter(B_cell_open_ac, !duplicated(B_cell_open_ac["gene"]))
+Mono_open_ac_unique <- filter(Mono_open_ac, !duplicated(Mono_open_ac["gene"]))
+Gran_open_ac_unique <- filter(Gran_open_ac, !duplicated(Gran_open_ac["gene"]))
+
+MPP_open_unac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 0, gene %nin% MPP_open_ac_unique$gene)
+CMP_open_unac <- filter(enhancers_and_genes, CMP_atac_significant == 0, CMP_ac_significant == 0, gene %nin% CMP_open_ac_unique$gene)
+GMP_open_unac <- filter(enhancers_and_genes, GMP_atac_significant == 0, GMP_ac_significant == 0, gene %nin% GMP_open_ac_unique$gene)
+B_cell_open_unac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bcell_ac_significant == 0, gene %nin% B_cell_open_ac_unique$gene)
+Mono_open_unac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 0, gene %nin% Mono_open_ac_unique$gene)
+Gran_open_unac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 0, gene %nin% Gran_open_ac_unique$gene)
+
+### write gene subset catalogues ###
+
+#closed/ac-
+write.table(MPP_closed_unac, file='MPP_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(CMP_closed_unac, file='CMP_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(GMP_closed_unac, file='GMP_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(B_cell_closed_unac, file='B_cell_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(Mono_closed_unac, file='Mono_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(Gran_closed_unac, file='Gran_closed_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+#closed/ac+
+write.table(MPP_closed_ac, file='MPP_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(CMP_closed_ac, file='CMP_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(GMP_closed_ac, file='GMP_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(B_cell_closed_ac, file='B_cell_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(Mono_closed_ac, file='Mono_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(Gran_closed_ac, file='Gran_closed_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+#open/ac-
+write.table(MPP_open_unac, file='MPP_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(CMP_open_unac, file='CMP_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(GMP_open_unac, file='GMP_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(B_cell_open_unac, file='B_cell_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(Mono_open_unac, file='Mono_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(Gran_open_unac, file='Gran_open_unac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+#open/ac+
+write.table(MPP_open_ac, file='MPP_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(CMP_open_ac, file='CMP_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(GMP_open_ac, file='GMP_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(B_cell_open_ac, file='B_cell_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(Mono_open_ac, file='Mono_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+write.table(Gran_open_ac, file='Gran_open_ac_gene_catalogue.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+
+### GO term analysis of gene subsets (nearest enhancer open/closed chromatin, H3K27ac-/+) ###
+
+#add ENTREZ IDs to all genes (gene universe for GO analysis)
+enhancers_and_genes$ENTREZ <- mapIds(
+  org.Mm.eg.db,
+  keys = enhancers_and_genes$ENSEMBL,
+  keytype = "ENSEMBL",
+  column = "ENTREZID",
+  multiVals = "first"
+)
+
+#closed/ac-
+GO_MPP_closed_unac <- {
+  
+  MPP_closed_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = MPP_closed_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+     
+  gene_subset <- MPP_closed_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+   
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                                      geneIds = gene_subset,
+                                      universeGeneIds = all_genes,
+                                      annotation = "org.Mm.eg.db",
+                                      ontology = "BP",
+                                      pvalueCutoff = 0.05,
+                                      conditional = FALSE,
+                                      testDirection = "over"))
+  
+  write.table(summary(GO_run), file='MPP_closed_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_CMP_closed_unac <- {
+  
+  CMP_closed_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = CMP_closed_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- CMP_closed_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='CMP_closed_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_GMP_closed_unac <- {
+  
+  GMP_closed_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = GMP_closed_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- GMP_closed_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='GMP_closed_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_B_cell_closed_unac <- {
+  
+  B_cell_closed_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = B_cell_closed_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- B_cell_closed_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='B_cell_closed_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_Mono_closed_unac <- {
+  
+  Mono_closed_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = Mono_closed_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- Mono_closed_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='Mono_closed_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_Gran_closed_unac <- {
+  
+  Gran_closed_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = Gran_closed_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- Gran_closed_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='Gran_closed_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+#closed/ac+
+GO_MPP_closed_ac <- {
+  
+  MPP_closed_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = MPP_closed_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- MPP_closed_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='MPP_closed_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_CMP_closed_ac <- {
+  
+  CMP_closed_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = CMP_closed_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- CMP_closed_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='CMP_closed_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_GMP_closed_ac <- {
+  
+  GMP_closed_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = GMP_closed_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- GMP_closed_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='GMP_closed_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_B_cell_closed_ac <- {
+  
+  B_cell_closed_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = B_cell_closed_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- B_cell_closed_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='B_cell_closed_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_Mono_closed_ac <- {
+  
+  Mono_closed_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = Mono_closed_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- Mono_closed_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='Mono_closed_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_Gran_closed_ac <- {
+  
+  Gran_closed_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = Gran_closed_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- Gran_closed_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='Gran_closed_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+#open/ac-
+GO_MPP_open_unac <- {
+  
+  MPP_open_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = MPP_open_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- MPP_open_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='MPP_open_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_CMP_open_unac <- {
+  
+  CMP_open_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = CMP_open_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- CMP_open_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='CMP_open_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_GMP_open_unac <- {
+  
+  GMP_open_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = GMP_open_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- GMP_open_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='GMP_open_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_B_cell_open_unac <- {
+  
+  B_cell_open_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = B_cell_open_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- B_cell_open_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='B_cell_open_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_Mono_open_unac <- {
+  
+  Mono_open_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = Mono_open_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- Mono_open_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='Mono_open_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_Gran_open_unac <- {
+  
+  Gran_open_unac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = Gran_open_unac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- Gran_open_unac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='Gran_open_unac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+#open/ac+
+GO_MPP_open_ac <- {
+  
+  MPP_open_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = MPP_open_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- MPP_open_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='MPP_open_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_CMP_open_ac <- {
+  
+  CMP_open_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = CMP_open_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- CMP_open_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='CMP_open_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_GMP_open_ac <- {
+  
+  GMP_open_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = GMP_open_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- GMP_open_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='GMP_open_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_B_cell_open_ac <- {
+  
+  B_cell_open_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = B_cell_open_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- B_cell_open_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='B_cell_open_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_Mono_open_ac <- {
+  
+  Mono_open_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = Mono_open_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- Mono_open_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='Mono_open_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+GO_Gran_open_ac <- {
+  
+  Gran_open_ac$ENTREZ <- mapIds(
+    org.Mm.eg.db,
+    keys = Gran_open_ac$ENSEMBL,
+    keytype = "ENSEMBL",
+    column = "ENTREZID",
+    multiVals = "first"
+  )
+  
+  gene_subset <- Gran_open_ac %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  all_genes <- enhancers_and_genes %>% 
+    as.data.frame() %>% 
+    pull(ENTREZ) %>% 
+    unique()
+  
+  GO_run <- hyperGTest(new("GOHyperGParams",
+                           geneIds = gene_subset,
+                           universeGeneIds = all_genes,
+                           annotation = "org.Mm.eg.db",
+                           ontology = "BP",
+                           pvalueCutoff = 0.05,
+                           conditional = FALSE,
+                           testDirection = "over"))
+  
+  write.table(summary(GO_run), file='Gran_open_ac_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
+  
+}
+
