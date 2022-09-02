@@ -36,13 +36,13 @@
 
 #-----------------------------------------------------------------------------------------------
 
-#Inputs:
-#C:/Users/Helena/405_Linux_outputs/HTSeq/samples.csv (download from R folder on Github)
-#C:/Users/Helena/405_Linux_outputs/HTSeq/*.htseq.out (export 22 .htseq.out files from STAR_and_HTSeq.sh in bash folder on Github)
-#C:/Users/Helena/405_Linux_outputs/enhancers_status.tsv (export from assign_enhancer_status.py script in python folder on Github)
-#C:/Users/Helena/405_Linux_outputs/mpp_acet_closed_great.txt (lines 82-84 in script: input file into GREAT, download output, rename file)
-#C:/Users/Helena/405_Linux_outputs/single_closest_gene.txt (lines 179-181 in script: input file into GREAT, download output, rename file)
-#C:/Users/Helena/405_Linux_outputs/enhancer_gene_map.txt 
+#Inputs: please have all the required inputs in the appropriate folders before running the script
+  #C:/Users/Helena/405_Linux_outputs/HTSeq/samples.csv (download from R folder on Github)
+  #C:/Users/Helena/405_Linux_outputs/HTSeq/*.htseq.out (export 22 .htseq.out files from STAR_and_HTSeq.sh in bash folder on Github)
+  #C:/Users/Helena/405_Linux_outputs/enhancers_status.tsv (export from assign_enhancer_status.py script in python folder on Github)
+  #C:/Users/Helena/405_Linux_outputs/mpp_acet_closed_great.txt (lines 82-84 in script: input file into GREAT, download output, rename file)
+  #C:/Users/Helena/405_Linux_outputs/single_closest_gene.txt (lines 179-181 in script: input file into GREAT, download output, rename file)
+  #C:/Users/Helena/405_Linux_outputs/enhancer_gene_map.txt 
 
 #################################################################################################
 
