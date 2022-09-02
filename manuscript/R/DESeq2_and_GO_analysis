@@ -59,7 +59,7 @@ write.table(res_Mono_vs_MPP, file = 'Mono_vs_MPP_all.txt', sep = '\t', col.names
 library(tidyverse)
 library(dplyr)
 
-enhancers <-  read.table(file = 'rna_align/enhancers_status.tsv',
+enhancers <-  read.table(file = 'enhancers_status.tsv',
                          sep = '\t', header = TRUE)
                          
 # Subset enhancers by closed/ac in MPP --------------------------------------------------------
@@ -72,7 +72,7 @@ mpp_acet_closed_great <-  mpp_acet_closed %>%
   select(chr, start, end, enhancer)
 
 #Export enhancers as .bed for visualization in GREAT 
-write_tsv(mpp_acet_closed_great, "./rna_align/mpp_acet_closed_great.bed", col_names = FALSE)
+write_tsv(mpp_acet_closed_great, "mpp_acet_closed_great.bed", col_names = FALSE)
 
 # Filter closed/ac enhancers in MPP from GREAT ---------------------------------------------------------
 
@@ -549,12 +549,12 @@ enhancer_status <- read.table(file = 'enhancers_status.tsv', sep = '\t', header 
 enhancer_gene_map <- read.table(file = 'enhancer_gene_map.txt', sep = '\t', header = TRUE)
 
 #import expression data
-MPP_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/MPP_geneExpression.tsv', sep = '\t', header = TRUE)
-CMP_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/CMP_geneExpression.tsv', sep = '\t', header = TRUE)
-GMP_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/GMP_geneExpression.tsv', sep = '\t', header = TRUE)
-B_cell_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/Bcell_geneExpression.tsv', sep = '\t', header = TRUE)
-Mono_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/Mono_geneExpression.tsv', sep = '\t', header = TRUE)
-Gran_TPM <- read.table(file = 'drive-download-20220310T081839Z-001/Gran_geneExpression.tsv', sep = '\t', header = TRUE)
+MPP_TPM <- read.table(file = 'MPP_geneExpression.tsv', sep = '\t', header = TRUE)
+CMP_TPM <- read.table(file = 'CMP_geneExpression.tsv', sep = '\t', header = TRUE)
+GMP_TPM <- read.table(file = 'GMP_geneExpression.tsv', sep = '\t', header = TRUE)
+B_cell_TPM <- read.table(file = 'Bcell_geneExpression.tsv', sep = '\t', header = TRUE)
+Mono_TPM <- read.table(file = 'Mono_geneExpression.tsv', sep = '\t', header = TRUE)
+Gran_TPM <- read.table(file = 'Gran_geneExpression.tsv', sep = '\t', header = TRUE)
 
 #merge enhancers + nearest genes
 enhancer_status_with_genes <- merge(enhancer_gene_map, enhancer_status, by="enhancer")
