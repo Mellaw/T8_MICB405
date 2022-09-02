@@ -61,3 +61,6 @@ htseq-count \
   --stranded=no \
   > ${NAME}.htseq.out
 done
+
+#export HTSeq files
+scp hsokolovska_mb21@orca2.bcgsc.ca:/projects/micb405/analysis/GROUP8/htseq_output/* /Users/Helena/405_Linux_outputs
