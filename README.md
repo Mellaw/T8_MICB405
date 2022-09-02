@@ -22,15 +22,15 @@ To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bas
 
 For the full pipeline of analysis, run numbered scripts in order:
 
-1_Data_Import_and_ChIP-seq.sh
-   Calls on scripts in python folder:
-     get_desired_runs.py
-     rename_fastq.py
-     get_median_enh_treat_control_pileup.py
-     get_max_enhancer_q_value.py
-2_RNA-seq_STAR_and_HTSeq.sh
-3_Assign_Enhancer_Status.py
-4_Calculate_TPM.py
-5_DESeq2_and_GO_analysis
+- 1_Data_Import_and_ChIP-seq.sh
+  - Calls on scripts in python folder:
+     - get_desired_runs.py
+     - rename_fastq.py
+     - get_median_enh_treat_control_pileup.py
+     - get_max_enhancer_q_value.py
+- 2_RNA-seq_STAR_and_HTSeq.sh
+- 3_Assign_Enhancer_Status.py
+- 4_Calculate_TPM.py
+- 5_DESeq2_and_GO_analysis
 
 Contributing Authors: Andy Murtha, Helena Sokolovska, Kitty Martens, Melanie Law, Kalen Dofher, and Annice Li
