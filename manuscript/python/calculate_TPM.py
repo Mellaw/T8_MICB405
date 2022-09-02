@@ -13,7 +13,7 @@ import numpy as np
 # 
 # =============================================================================
 
-folder = 'C:/Users/andym/OneDrive/Documents/MICB405/htseq_output'
+folder = 'C:/Users/Helena/405_Linux_outputs/'
 gene_length = pd.read_csv('C:/Users/andym/OneDrive/Documents/MICB405/gene_size.tsv', sep = '\t')
 gene_length.columns= ['ensemble_id','gene_size']
 
