@@ -1,14 +1,14 @@
-## Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
+# Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
 
 **Contributing Authors: Melanie Law, Helena Sokolovska, Andy Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher**
 
 This is the full code repository for our study. Python and R were used for data analysis and figure generation. All iChIP-seq and ATAC-seq pre-processing is done in bash. 
 
-### After downloading this repository, follow these step to replicate our findings:
+## After downloading this repository, follow these step to replicate our findings:
 
 To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bash/1_Data_Import_and_ChIP-seq.sh **from the ./manuscript folder**. Figures can be recreated using the data generated (final data located in data/enhancer_status.tsv), but exact code is not included.
 
-#### The following dependencies are required:
+### The following dependencies are required:
 - Ubuntu 16.04.5
 - bwa 0.7.17-r1188
 - bigBedToBed v1
@@ -34,7 +34,7 @@ To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bas
   - GO.db 3.12.1 
   - GOstats 2.56.0
 
-#### For the full pipeline of analysis, run numbered scripts in order:
+### For the full pipeline of analysis, run numbered scripts in order:
 - 1_Data_Import_and_ChIP-seq.sh
   - Calls on scripts in python folder:
      - get_desired_runs.py
