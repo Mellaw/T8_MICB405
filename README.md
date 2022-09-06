@@ -2,11 +2,15 @@
 
 Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
 
-This is the full code repository for Group 8's MICB 405 capstone project. Python and R were used for data manipulation and figure generation. All iChIP-seq and ATAC-seq pre-processing is done in bash. 
+Contributing Authors: Melanie Law, Helena Sokolovska, Andy Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
+
+This is the full code repository for our study. Python and R were used for data manipulation and figure generation. All iChIP-seq and ATAC-seq pre-processing is done in bash. 
 
 After downloading this repository, follow these step to replicate our findings:
 
-To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bash/1_Data_Import_and_ChIP-seq.sh **from the ./manuscript folder**. Figures can be recreated using the data generated (final data located in data/enhancer_status.tsv), but exact code is not included. The following dependencies are required:
+To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bash/1_Data_Import_and_ChIP-seq.sh **from the ./manuscript folder**. Figures can be recreated using the data generated (final data located in data/enhancer_status.tsv), but exact code is not included.
+
+The following dependencies are required:
 - Ubuntu 16.04.5
 - bwa 0.7.17-r1188
 - bigBedToBed v1
@@ -19,7 +23,7 @@ To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bas
   - pandas 1.3.3
   - numpy 1.20.3
   - seaborn 0.11.2
-- GREAT 4.0.4
+- Genomic Regions Enrichment of Annotations Tool (GREAT) 4.0.4
 - STAR 2.7.9a
 - HTSeq 0.11.2
 - RStudio 2021.09.0
@@ -33,7 +37,6 @@ To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bas
   - GOstats 2.56.0
 
 For the full pipeline of analysis, run numbered scripts in order:
-
 - 1_Data_Import_and_ChIP-seq.sh
   - Calls on scripts in python folder:
      - get_desired_runs.py
@@ -44,5 +47,3 @@ For the full pipeline of analysis, run numbered scripts in order:
 - 3_Assign_Enhancer_Status.py
 - 4_Calculate_TPM.py
 - 5_DESeq2_and_GO_analysis
-
-Contributing Authors: Melanie Law, Helena Sokolovska, Andy Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
