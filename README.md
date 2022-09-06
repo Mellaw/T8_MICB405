@@ -45,4 +45,4 @@ For the full pipeline of analysis, run numbered scripts in order:
 - 4_Calculate_TPM.py
 - 5_DESeq2_and_GO_analysis
 
-Contributing Authors: Andy Murtha, Helena Sokolovska, Kitty Martens, Melanie Law, Kalen Dofher, and Annice Li
+Contributing Authors: Melanie Law, Helena Sokolovska, Andy Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
