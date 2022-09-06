@@ -1,6 +1,6 @@
 # Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
 
-Contributing Authors: Melanie Law, Helena Sokolovska, Andy Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
+**Contributing Authors: Melanie Law, Helena Sokolovska, Andy Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher**
 
 This is the full code repository for our study. Python and R were used for data manipulation and figure generation. All iChIP-seq and ATAC-seq pre-processing is done in bash. 
 
