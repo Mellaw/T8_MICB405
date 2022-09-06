@@ -15,10 +15,22 @@ To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bas
 - samtools 1.9 (using htslib 1.9)
 - macs2 2.2.7.1
 - bedtools v2.27.1
-- Python 3.9.7 (with the follow packages): These 3 packages will take care of the dependencies
+- Python 3.9.7 (with the following packages): These 3 packages will take care of the dependencies
   - pandas 1.3.3
   - numpy 1.20.3
   - seaborn 0.11.2
+- GREAT 4.0.4
+- STAR 2.7.9a
+- HTSeq 0.11.2
+- RStudio 2021.09.0
+  - DESeq2 1.30.1 
+  - dplyr 1.0.8
+  - tidyverse 1.3.1 
+  - xlsx 0.6.5
+  - AnnotationDbi 1.52.0
+  - org.Mm.eg.db 3.12.0  
+  - GO.db 3.12.1 
+  - GOstats 2.56.0
 
 For the full pipeline of analysis, run numbered scripts in order:
 
