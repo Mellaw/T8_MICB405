@@ -26,7 +26,6 @@ To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bas
 - HTSeq 0.11.2
 - RStudio 2021.09.0
   - DESeq2 1.30.1 
-  - dplyr 1.0.8
   - tidyverse 1.3.1 
   - xlsx 0.6.5
   - AnnotationDbi 1.52.0
