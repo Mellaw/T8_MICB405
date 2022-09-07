@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+
+#Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
+#Authors: Melanie Law, Helena Sokolovska, Andrew Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
+
 """
 Created on Mon Nov 29 15:55:02 2021
 
