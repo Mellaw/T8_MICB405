@@ -60,10 +60,7 @@
 
 #load necessary packages
 library(DESeq2)
-library(dplyr)
 library(tidyverse)
-library(pheatmap)
-library(RColorBrewer)
 library(AnnotationDbi)
 library(org.Mm.eg.db)
 library(GO.db)
