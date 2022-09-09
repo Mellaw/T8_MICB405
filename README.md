@@ -6,7 +6,7 @@ This is the full code repository for our study. Python and R were used for data 
 
 ## After downloading this repository, follow these step to replicate our findings:
 
-To download, process, and analyze ATAC- and iCHIP-seq data, run ./manuscript/bash/1_Data_Import_and_ChIP-seq.sh **from the ./manuscript folder**. Figures can be recreated using the data generated (final data located in data/enhancer_status.tsv), but exact code is not included.
+To download, process, and analyze ATAC-seq and iChIP-seq data, run ./manuscript/bash/1_Data_Import_and_ChIP-seq.sh **from the ./manuscript folder**. Figures can be recreated using the data generated (final data located in data/enhancer_status.tsv), but exact code is not included.
 
 ### The following dependencies are required:
 - Ubuntu 16.04.5
