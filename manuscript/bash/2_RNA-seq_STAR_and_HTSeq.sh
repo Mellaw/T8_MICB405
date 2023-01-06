@@ -1,17 +1,17 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-#Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
-#Authors: Melanie Law, Helena Sokolovska, Andrew Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
+# Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
+# Authors: Melanie Law, Helena Sokolovska, Andrew Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
 
-#Purpose:
-#STAR (RNA alignment) and HTSeq (determining reads/gene)
+# Purpose:
+  # STAR (RNA alignment) and HTSeq (determining reads/gene)
 
 mkdir /projects/micb405/analysis/GROUP8/star && cd /projects/micb405/analysis/GROUP8/star
 mkdir STARIndex
 
 ### STAR ###
 
-#generate STAR index using the mm10 reference genome (.fasta) and gene file (.gtf)
+# generate STAR index using the mm10 reference genome (.fasta) and gene file (.gtf)
 STAR \
   --runMode genomeGenerate \
   --genomeDir STARIndex \
@@ -20,7 +20,7 @@ STAR \
   --sjdbOverhang 49 \
   --runThreadN 16
 
-#align RNA-seq data (.fastq) to your STAR index
+# align RNA-seq data (.fastq) to your STAR index
 for FILE in /projects/micb405/analysis/GROUP8/fastq/*
 do
  NAME=$(basename $FILE)
@@ -44,14 +44,14 @@ done
 
 mkdir /projects/micb405/analysis/GROUP8/htseq_output && cd /projects/micb405/analysis/GROUP8/htseq_output
 
-#install HTSeq
+# install HTSeq
 pip3 install htseq
 
-#index your STAR output .bam files (HTSeq requirement)
-#keep indexed .bai files in the same directory as the original .bam files
+# index your STAR output .bam files (HTSeq requirement)
+# keep indexed .bai files in the same directory as the original .bam files
 samtools index /projects/micb405/analysis/GROUP8/RNA_alignments2/*.bam
 
-#run HTSeq on your STAR output .bam files to determine reads/gene
+# run HTSeq on your STAR output .bam files to determine reads/gene
 for FILE in /projects/micb405/analysis/GROUP8/RNA_alignments2/*.fastq.gzAligned.sortedByCoord.out.bam
 do
  NAME=$(basename $FILE)
