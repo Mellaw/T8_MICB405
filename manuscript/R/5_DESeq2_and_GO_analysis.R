@@ -1,52 +1,52 @@
 #################################################################################################
 
-#Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
-#Authors: Melanie Law, Helena Sokolovska, Andrew Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
+# Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
+# Authors: Melanie Law, Helena Sokolovska, Andrew Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
 
 #-----------------------------------------------------------------------------------------------
 
-#Purpose of entire script:
+# Purpose of script:
 
-#DESeq2 differential RNA expression analysis for each cell type, relative to MPP
+# DESeq2 differential RNA expression analysis for each cell type, relative to MPP
 
-#Preparing list of all enhancers for nearest gene association in GREAT
-#Gene-enhancer association for all enhancers, in GREAT
-#Combining gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
+# Preparing list of all enhancers for nearest gene association in GREAT
+# Gene-enhancer association for all enhancers, in GREAT
+# Combining gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
 
-#Preparing list of enhancers that are closed/ac+ in MPP, for nearest gene association in GREAT
-#Gene-enhancer association for enhancers that are closed/ac+ in MPP, in GREAT
-#Combining (closed/ac+ in MPP) gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
+# Preparing list of enhancers that are closed/ac+ in MPP, for nearest gene association in GREAT
+# Gene-enhancer association for enhancers that are closed/ac+ in MPP, in GREAT
+# Combining (closed/ac+ in MPP) gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
 
-#Take (closed/ac+ in MPP) genes, and filter for only significantly upregulated genes in each cell type (log2foldchange > 1 relative to MPP)
-#GO-BP enrichment analysis:
-  #upregulated genes (relative to MPP) associated with closed/ac+ enhancers in MPP, and compared to all genes associated with closed/ac+ enhancers in MPP
+# Take (closed/ac+ in MPP) genes, and filter for only significantly upregulated genes in each cell type (log2foldchange > 1 relative to MPP)
+# GO-BP enrichment analysis:
+  # upregulated genes (relative to MPP) associated with closed/ac+ enhancers in MPP, and compared to all genes associated with closed/ac+ enhancers in MPP
   
-#Filtering for closed/ac+ enhancers in each cell type
-  #+ genes in top quantile of TPM expression for each subset
-#GO-BP enrichment analysis:
-  #top quantile of TPM expression for closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
+# Filtering for closed/ac+ enhancers in each cell type
+  # + genes in top quantile of TPM expression for each subset
+# GO-BP enrichment analysis:
+  # top quantile of TPM expression for closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
 
-#Filtering gene subsets by nearest enhancer status (open/closed chromatin x H3K27ac-/+)
-#GO-BP enrichment analysis:
-  #closed/ac- enhancers in each cell type, and compared to all enhancer-associated genes
-  #closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
-  #open/ac- enhancers in each cell type, and compared to all enhancer-associated genes
-  #open/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
+# Filtering gene subsets by nearest enhancer status (open/closed chromatin x H3K27ac-/+)
+# GO-BP enrichment analysis:
+  # closed/ac- enhancers in each cell type, and compared to all enhancer-associated genes
+  # closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
+  # open/ac- enhancers in each cell type, and compared to all enhancer-associated genes
+  # open/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
 
 #-----------------------------------------------------------------------------------------------
 
-#Inputs: please have all the required inputs in the appropriate folders before running the script
-  #C:/Users/Helena/405_Linux_outputs/HTSeq/samples.csv
-    #(download from R folder on Github)
-  #C:/Users/Helena/405_Linux_outputs/HTSeq/*.htseq.out
-    #(export 22 .htseq.out files from STAR_and_HTSeq.sh, in bash folder on Github)
-  #C:/Users/Helena/405_Linux_outputs/enhancers_status.tsv
-    #(export from assign_enhancer_status.py script, in python folder on Github)
-  #C:/Users/Helena/405_Linux_outputs/mpp_acet_closed_great.txt
-    #(lines 129-131 in script: input file into GREAT, download output, rename file)
-  #C:/Users/Helena/405_Linux_outputs/single_closest_gene.txt
-    #(lines 231-233 in script: input file into GREAT, download output, rename file)
-  #C:/Users/Helena/405_Linux_outputs/enhancer_gene_map.txt 
+# Inputs: please have all the required inputs in the appropriate folders before running the script
+  # C:/Users/Helena/405_Linux_outputs/HTSeq/samples.csv
+    # (download from R folder on GitHub)
+  # C:/Users/Helena/405_Linux_outputs/HTSeq/*.htseq.out
+    # (export 22 .htseq.out files from STAR_and_HTSeq.sh, in bash folder on GitHub)
+  # C:/Users/Helena/405_Linux_outputs/enhancers_status.tsv
+    # (export from assign_enhancer_status.py script, in python folder on GitHub)
+  # C:/Users/Helena/405_Linux_outputs/mpp_acet_closed_great.txt
+    # (lines 130-132 in script: input file into GREAT, download output, rename file)
+  # C:/Users/Helena/405_Linux_outputs/single_closest_gene.txt
+    # (lines 232-234 in script: input file into GREAT, download output, rename file)
+  # C:/Users/Helena/405_Linux_outputs/enhancer_gene_map.txt 
 
 #################################################################################################
 
@@ -54,10 +54,10 @@
 
 ########### DESeq2 differential RNA expression analysis following STAR/HTSeq ########### 
 
-#Purpose:
-#DESeq2 differential RNA expression analysis for each cell type, relative to MPP
+# Purpose:
+  # DESeq2 differential RNA expression analysis for each cell type, relative to MPP
 
-#load necessary packages
+# load necessary packages
 library(DESeq2)
 library(tidyverse)
 library(AnnotationDbi)
@@ -71,15 +71,15 @@ setwd("C:/Users/Helena/405_Linux_outputs/")
 
 dir <- "C:/Users/Helena/405_Linux_outputs/HTSeq"
 
-#assign file path to a variable
+# assign file path to a variable
 sample_metadata <- read_csv(file.path(dir, "samples.csv"))
 sample_metadata
 
-#assign HTSeq files to a variable
+# assign HTSeq files to a variable
 files <- file.path(dir, sample_metadata$sample)
 files
 
-#create a new data table with the variables sampleName, fileName and cell_type
+# create a new data table with the variables sampleName, fileName and cell_type
 sample_df <- data.frame(sampleName = sample_metadata$column1,
                         fileName = files,
                         condition = sample_metadata$cell_type,
@@ -88,13 +88,13 @@ sample_df <- data.frame(sampleName = sample_metadata$column1,
 ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = sample_df,
                                        design = ~ condition)
 
-#set control condition (MPP) using the relevel function
+# set control condition (MPP) using the relevel function
 ddsHTSeq$condition <- relevel(ddsHTSeq$condition, ref = "MPP")
 
-#run DESeq on ddsHTSeq
+# run DESeq on ddsHTSeq
 dds <- DESeq(ddsHTSeq)
 
-#print and write table for DESeq2 results
+# print and write table for DESeq2 results
 
 all.names <-  results(dds)
 res_Bcell_vs_MPP <- results(dds, name = "condition_Bcell_vs_MPP")
@@ -113,10 +113,10 @@ write.table(res_Mono_vs_MPP, file = 'Mono_vs_MPP_all.txt', sep = '\t', col.names
 
 ########### Associating genes (and gene expression) with enhancers using data from GREAT, for all enhancers ########### 
 
-#Purpose:
-#Preparing list of all enhancers for nearest gene association in GREAT
-#Gene-enhancer association for all enhancers, in GREAT
-#Combining gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
+# Purpose:
+  # Preparing list of all enhancers for nearest gene association in GREAT
+  # Gene-enhancer association for all enhancers, in GREAT
+  # Combining gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
 
 enhancers <-  read.table(file = 'enhancers_status.tsv',
                          sep = '\t', header = TRUE)
@@ -124,14 +124,14 @@ enhancers <-  read.table(file = 'enhancers_status.tsv',
 enhancers_great <- enhancers %>% 
   select(chr, start, end, enhancer)
 
-#export enhancers as .bed for visualization in GREAT 
+# export enhancers as .bed for visualization in GREAT 
 write_tsv(enhancers_great, "enhancers_great.bed", col_names = FALSE)
 
-#input enhancers_great.bed file into GREAT to associate nearest genes to enhancers
-#download single_closest_gene.txt output from GREAT to C:/Users/Helena/405_Linux_outputs/
-#rename single_closest_gene.txt as enhancers_great.txt
+# input enhancers_great.bed file into GREAT to associate nearest genes to enhancers
+# download single_closest_gene.txt output from GREAT to C:/Users/Helena/405_Linux_outputs/
+# rename single_closest_gene.txt as enhancers_great.txt
 
-#filter gene-enhancer table from GREAT
+# filter gene-enhancer table from GREAT
 
 great <- read.table(file = 'enhancers_great.txt',
                     sep = '\t', header = FALSE)
@@ -159,7 +159,7 @@ gene_dist$bp_dist = bp_dist
 gene_dist <- gene_dist %>% 
   select(-c("gene_ls"))
 
-#import DESeq2 results
+# import DESeq2 results
 bcell <- read.table(file = 'Bcell_vs_MPP_all.txt', sep = '\t', header = TRUE)
 cmp <- read.table(file = 'CMP_vs_MPP_all.txt', sep = '\t', header = TRUE)
 gmp <- read.table(file = 'GMP_vs_MPP_all.txt', sep = '\t', header = TRUE)
@@ -174,7 +174,7 @@ colnames(gmp) <- c("gene", "baseMean", "gmp_log2fold", "lfcSE", "stat",
 colnames(gran) <- c("gene", "baseMean", "gran_log2fold", "lfcSE", "stat",
                     "pvalue", "gran_padj")
 
-#filter for desired columns from DESeq2 analysis
+# filter for desired columns from DESeq2 analysis
 
 bcell_sub <- bcell %>% 
   filter(gene %in% gene_nm) %>% 
@@ -192,7 +192,7 @@ gran_sub <- gran %>%
   filter(gene %in% gene_nm) %>% 
   select(gene, gran_log2fold, gran_padj)
 
-#merge DESeq2 results with gene & enhancer table 
+# merge DESeq2 results with gene & enhancer table 
 gene_dist = merge(gene_dist, bcell_sub, by = "gene", all.x = TRUE)
 gene_dist = merge(gene_dist, cmp_sub, by = "gene", all.x = TRUE)
 gene_dist = merge(gene_dist, gmp_sub, by = "gene", all.x = TRUE)
@@ -209,15 +209,15 @@ write_tsv(summary_narm, "closest_gene_expression_narm.tsv", col_names = TRUE)
   
 ########### Associating genes (and gene expression) with enhancers using data from GREAT, for closed/ac+ enhancers in MPP ########### 
 
-#Purpose:
-#Preparing list of enhancers that are closed/ac+ in MPP, for nearest gene association in GREAT
-#Gene-enhancer association for enhancers that are closed/ac+ in MPP, in GREAT
-#Combining (closed/ac+ in MPP) gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
+# Purpose:
+  # Preparing list of enhancers that are closed/ac+ in MPP, for nearest gene association in GREAT
+  # Gene-enhancer association for enhancers that are closed/ac+ in MPP, in GREAT
+  # Combining (closed/ac+ in MPP) gene-enhancer table from GREAT with differential RNA expression for each cell type from DESeq2 (relative to MPP)
 
 enhancers <-  read.table(file = 'enhancers_status.tsv',
                          sep = '\t', header = TRUE)
                          
-#subset enhancers by closed/ac in MPP
+# subset enhancers by closed/ac in MPP
 
 mpp_acet_closed <- enhancers %>% 
   filter(MPP_atac_significant == 0 &
@@ -226,14 +226,14 @@ mpp_acet_closed <- enhancers %>%
 mpp_acet_closed_great <-  mpp_acet_closed %>% 
   select(chr, start, end, enhancer)
 
-#export enhancers as .bed for visualization in GREAT 
+# export enhancers as .bed for visualization in GREAT 
 write_tsv(mpp_acet_closed_great, "mpp_acet_closed_great.bed", col_names = FALSE)
 
-#input mpp_acet_closed_great.bed file into GREAT to associate nearest genes to enhancers
-#download single_closest_gene.txt output from GREAT to C:/Users/Helena/405_Linux_outputs/
-#rename single_closest_gene.txt as mpp_acet_closed_great.txt
+# input mpp_acet_closed_great.bed file into GREAT to associate nearest genes to enhancers
+# download single_closest_gene.txt output from GREAT to C:/Users/Helena/405_Linux_outputs/
+# rename single_closest_gene.txt as mpp_acet_closed_great.txt
 
-#filter (closed/ac+ in MPP) gene-enhancer table from GREAT
+# filter (closed/ac+ in MPP) gene-enhancer table from GREAT
 
 great <- read.table(file = 'mpp_acet_closed_great.txt',
                     sep = '\t', header = FALSE)
@@ -261,7 +261,7 @@ gene_dist$bp_dist = bp_dist
 gene_dist <- gene_dist %>% 
   select(-c("gene_ls"))
 
-#import DESeq2 results
+# import DESeq2 results
 bcell <- read.table(file = 'Bcell_vs_MPP_all.txt', sep = '\t', header = TRUE)
 cmp <- read.table(file = 'CMP_vs_MPP_all.txt', sep = '\t', header = TRUE)
 gmp <- read.table(file = 'GMP_vs_MPP_all.txt', sep = '\t', header = TRUE)
@@ -277,7 +277,7 @@ colnames(gmp) <- c("gene", "baseMean", "gmp_log2fold", "lfcSE", "stat",
 colnames(gran) <- c("gene", "baseMean", "gran_log2fold", "lfcSE", "stat",
                     "pvalue", "gran_padj")
 
-#filter for desired columns from DESeq2 analysis
+# filter for desired columns from DESeq2 analysis
 
 bcell_sub <- bcell %>% 
   filter(gene %in% gene_nm) %>% 
@@ -295,7 +295,7 @@ gran_sub <- gran %>%
   filter(gene %in% gene_nm) %>% 
   select(gene, gran_log2fold, gran_padj)
 
-#merge DESeq2 results with gene & enhancer table 
+# merge DESeq2 results with gene & enhancer table 
 gene_dist = merge(gene_dist, bcell_sub, by = "gene", all.x = TRUE)
 gene_dist = merge(gene_dist, cmp_sub, by = "gene", all.x = TRUE)
 gene_dist = merge(gene_dist, gmp_sub, by = "gene", all.x = TRUE)
@@ -312,19 +312,19 @@ write_tsv(summary_narm, "closest_gene_expression_closed_ac_MPP_narm.tsv", col_na
 
 ########### GO-BP enrichment analysis of upregulated genes (relative to MPP) associated with closed/ac+ enhancers in MPP, and compared to all genes associated with closed/ac+ enhancers in MPP  ########### 
 
-#Purpose:
-#Take (closed/ac+ in MPP) genes, and filter for only significantly upregulated genes in each cell type (log2foldchange > 1 relative to MPP)
-#GO-BP enrichment analysis:
-  #upregulated genes (relative to MPP) associated with closed/ac+ enhancers in MPP, and compared to all genes associated with closed/ac+ enhancers in MPP
+# Purpose:
+  # Take (closed/ac+ in MPP) genes, and filter for only significantly upregulated genes in each cell type (log2foldchange > 1 relative to MPP)
+  # GO-BP enrichment analysis:
+    # upregulated genes (relative to MPP) associated with closed/ac+ enhancers in MPP, and compared to all genes associated with closed/ac+ enhancers in MPP
 
-#assign (closed/ac+ in MPP) genes identified in GREAT to a variable
+# assign (closed/ac+ in MPP) genes identified in GREAT to a variable
 file_closed_ac_MPP <- read_tsv("closest_gene_expression_closed_ac_MPP_narm.tsv")
 file_closed_ac_MPP
 
-#create a new data frame to contain the enhancer files
+# create a new data frame to contain the enhancer files
 sample_df <- data.frame(file_closed_ac_MPP)
 
-#add ENSEMBL id's
+# add ENSEMBL id's
 sample_df$ensembl <- mapIds(
   org.Mm.eg.db,
   keys = sample_df$gene,
@@ -333,7 +333,7 @@ sample_df$ensembl <- mapIds(
   multiVals = "first"
 )
 
-#add ENTREZ ids
+# add ENTREZ ids
 sample_df$entrez <- mapIds(
   org.Mm.eg.db,
   keys = sample_df$ensembl,
@@ -342,13 +342,13 @@ sample_df$entrez <- mapIds(
   multiVals = "first"
 )
 
-#create a list of all unique genes
+# create a list of all unique genes
 all_genes_enhancers <- sample_df %>% 
   as.data.frame() %>% 
   pull(entrez) %>% 
   unique()
 
-#subset out only differentially abundant genes
+# subset out only differentially abundant genes
 significant_res_Bcell <- subset(sample_df, bcell_padj < 0.05)
 write_csv(as.data.frame(significant_res_Bcell), file = "Bcell_vs_MPP_05_Enhancer.csv")
 
@@ -364,13 +364,13 @@ write_csv(as.data.frame(significant_res_Gran), file = "Gran_vs_MPP_05_Enhancer.c
 significant_res_Mono <- subset(sample_df, mono_padj < 0.05)
 write_csv(as.data.frame(significant_res_Mono), file = "Mono_vs_MPP_05_Enhancer.csv")
 
-#subset by log2fold change for each cell type
+# subset by log2fold change for each cell type
+
 genes_upregulated_bcell <- significant_res_Bcell %>% 
   as.data.frame() %>% 
   filter(bcell_log2fold > 1) %>%  
   pull(entrez) %>% 
   unique()
-
 write_csv(as.data.frame(genes_upregulated_bcell), file = "Bcell_vs_MPP_05_1_Enhancer.csv")
 
 genes_upregulated_cmp <- significant_res_CMP %>% 
@@ -378,7 +378,6 @@ genes_upregulated_cmp <- significant_res_CMP %>%
   filter(cmp_log2fold > 1) %>% 
   pull(entrez) %>% 
   unique()
-
 write_csv(as.data.frame(genes_upregulated_cmp), file = "CMP_vs_MPP_05_1_Enhancer.csv")
 
 genes_upregulated_gmp <- significant_res_GMP %>% 
@@ -386,7 +385,6 @@ genes_upregulated_gmp <- significant_res_GMP %>%
   filter(gmp_log2fold > 1) %>% 
   pull(entrez) %>% 
   unique()
-
 write_csv(as.data.frame(genes_upregulated_gmp), file = "GMP_vs_MPP_05_1_Enhancer.csv")
 
 genes_upregulated_gran <- significant_res_Gran %>% 
@@ -394,7 +392,6 @@ genes_upregulated_gran <- significant_res_Gran %>%
   filter(gran_log2fold > 1) %>% 
   pull(entrez) %>% 
   unique()
-
 write_csv(as.data.frame(genes_upregulated_gran), file = "Gran_vs_MPP_05_1_Enhancer.csv")
 
 genes_upregulated_mono <- significant_res_Mono %>% 
@@ -402,12 +399,12 @@ genes_upregulated_mono <- significant_res_Mono %>%
   filter(mono_log2fold > 1) %>% 
   pull(entrez) %>% 
   unique()
-
 write_csv(as.data.frame(genes_upregulated_mono), file = "Mono_vs_MPP_05_1_Enhancer.csv")
 
-#GO-BP enrichment analysis
+# GO-BP enrichment analysis:
 
-#create hypergtest object for each cell type and print to file
+# create hypergtest object for each cell type and print to file
+
 go_bp_upregulated <- hyperGTest(new("GOHyperGParams",
                                     geneIds = genes_upregulated_bcell,
                                     universeGeneIds = all_genes_enhancers,
@@ -467,17 +464,17 @@ write.csv(summary(go_bp_upregulated), file = "GOupsignificant_res_Mono.csv")
 
 ########### GO-BP enrichment analysis of highest expressed (top TPM quantile) closed/ac+ enhancer-associated genes, relative to all enhancer-associated genes ########### 
 
-#Purpose:
-#Filtering for closed/ac+ enhancers in each cell type
-  #+ genes in top quantile of TPM expression for each subset
-#GO-BP enrichment analysis:
-  #top quantile of TPM expression for closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
+# Purpose:
+# Filtering for closed/ac+ enhancers in each cell type
+  # + genes in top quantile of TPM expression for each subset
+# GO-BP enrichment analysis:
+  # top quantile of TPM expression for closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
 
-#import enhancer + nearest gene data tables
+# import enhancer + nearest gene data tables
 enhancer_status <- read.table(file = 'enhancers_status.tsv', sep = '\t', header = TRUE)
 enhancer_gene_map <- read.table(file = 'enhancer_gene_map.txt', sep = '\t', header = TRUE)
 
-#import expression data
+# import expression data
 MPP_TPM <- read.table(file = 'MPP_geneExpression.tsv', sep = '\t')
 colnames(MPP_TPM) <- c("ENSEMBL", "gene", "MPP_TPM")
 CMP_TPM <- read.table(file = 'CMP_geneExpression.tsv', sep = '\t')
@@ -491,10 +488,10 @@ colnames(Mono_TPM) <- c("ENSEMBL", "gene", "Mono_TPM")
 Gran_TPM <- read.table(file = 'Gran_geneExpression.tsv', sep = '\t')
 colnames(Gran_TPM) <- c("ENSEMBL", "gene", "Gran_TPM")
 
-#merge enhancers + nearest genes
+# merge enhancers + nearest genes
 enhancer_status_with_genes <- merge(enhancer_gene_map, enhancer_status, by="enhancer")
 
-#table clean-up
+# table clean-up
 enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes, MPP_TPM, by="gene", all.x = TRUE)
 enhancer_status_with_genes_ensembl <- subset(enhancer_status_with_genes_ensembl, select = -c(ENSEMBL))
 enhancer_status_with_genes_ensembl <- merge(enhancer_status_with_genes_ensembl, CMP_TPM, by="gene", all.x = TRUE)
@@ -510,7 +507,7 @@ enhancers_and_genes <- relocate(enhancer_status_with_genes_ensembl, ENSEMBL, .be
 
 write.table(enhancers_and_genes, file = "enhancer_status_with_genes_and_expression.tsv", quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
 
-#add ENTREZ IDs to all genes (gene universe for GO analysis)
+# add ENTREZ IDs to all genes (gene universe for GO analysis)
 enhancers_and_genes$ENTREZ <- mapIds(
   org.Mm.eg.db,
   keys = enhancers_and_genes$ENSEMBL,
@@ -519,9 +516,9 @@ enhancers_and_genes$ENTREZ <- mapIds(
   multiVals = "first"
 )
 
-#filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+) #
+# filtering gene subsets by nearest enhancer status (open/closed chromatin, H3K27ac-/+) #
 
-#closed/ac+
+# closed/ac+
 MPP_closed_ac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 1)
 CMP_closed_ac <- filter(enhancers_and_genes, CMP_atac_significant == 0, CMP_ac_significant == 1)
 GMP_closed_ac <- filter(enhancers_and_genes, GMP_atac_significant == 0, GMP_ac_significant == 1)
@@ -529,9 +526,9 @@ B_cell_closed_ac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bce
 Mono_closed_ac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 1)
 Gran_closed_ac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 1)
 
-#extract top quantile of gene expression in each subset
+# extract top quantile of gene expression in each subset
 
-#closed/ac+
+# closed/ac+
 MPP_closed_ac_TPM_quantiles <- quantile(MPP_closed_ac$MPP_TPM, na.rm = TRUE)
 MPP_closed_ac_top_quantile <- subset(MPP_closed_ac, MPP_TPM >= MPP_closed_ac_TPM_quantiles[4])
 CMP_closed_ac_TPM_quantiles <- quantile(CMP_closed_ac$CMP_TPM, na.rm = TRUE)
@@ -545,7 +542,7 @@ Mono_closed_ac_top_quantile <- subset(Mono_closed_ac, Mono_TPM >= Mono_closed_ac
 Gran_closed_ac_TPM_quantiles <- quantile(Gran_closed_ac$Gran_TPM, na.rm = TRUE)
 Gran_closed_ac_top_quantile <- subset(Gran_closed_ac, Gran_TPM >= Gran_closed_ac_TPM_quantiles[4])
 
-#GO-BP enrichment analysis
+# GO-BP enrichment analysis
 
 GO_MPP_closed_ac_top_quantile <- {
   
@@ -571,6 +568,7 @@ GO_MPP_closed_ac_top_quantile <- {
   write.table(summary(GO_run), file='MPP_closed_ac_top_quantile_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
   
 }
+
 GO_CMP_closed_ac_top_quantile <- {
   
   gene_subset <- CMP_closed_ac_top_quantile %>% 
@@ -595,6 +593,7 @@ GO_CMP_closed_ac_top_quantile <- {
   write.table(summary(GO_run), file='CMP_closed_ac_top_quantile_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
   
 }
+
 GO_GMP_closed_ac_top_quantile <- {
   
   gene_subset <- GMP_closed_ac_top_quantile %>% 
@@ -619,6 +618,7 @@ GO_GMP_closed_ac_top_quantile <- {
   write.table(summary(GO_run), file='GMP_closed_ac_top_quantile_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
   
 }
+
 GO_B_cell_closed_ac_top_quantile <- {
   
   gene_subset <- B_cell_closed_ac_top_quantile %>% 
@@ -643,6 +643,7 @@ GO_B_cell_closed_ac_top_quantile <- {
   write.table(summary(GO_run), file='B_cell_closed_ac_top_quantile_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
   
 }
+
 GO_Mono_closed_ac_top_quantile <- {
   
   gene_subset <- Mono_closed_ac_top_quantile %>% 
@@ -667,6 +668,7 @@ GO_Mono_closed_ac_top_quantile <- {
   write.table(summary(GO_run), file='Mono_closed_ac_top_quantile_GO_analysis.tsv', quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE) 
   
 }
+
 GO_Gran_closed_ac_top_quantile <- {
   
   gene_subset <- Gran_closed_ac_top_quantile %>% 
@@ -693,15 +695,16 @@ GO_Gran_closed_ac_top_quantile <- {
 }
 
 
+
 ########### GO-BP enrichment analysis for genes associated with each enhancer class (open/closed chromatin x H3K27ac-/+) ###########
 
-#Purpose:
-#Filtering gene subsets by nearest enhancer status (open/closed chromatin x H3K27ac-/+)
-#GO-BP enrichment analysis:
-  #closed/ac- enhancers in each cell type, and compared to all enhancer-associated genes
-  #closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
-  #open/ac- enhancers in each cell type, and compared to all enhancer-associated genes
-  #open/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
+# Purpose:
+# Filtering gene subsets by nearest enhancer status (open/closed chromatin x H3K27ac-/+)
+# GO-BP enrichment analysis:
+  # closed/ac- enhancers in each cell type, and compared to all enhancer-associated genes
+  # closed/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
+  # open/ac- enhancers in each cell type, and compared to all enhancer-associated genes
+  # open/ac+ enhancers in each cell type, and compared to all enhancer-associated genes
   
 library(DESeq2)
 library(tidyverse)
@@ -721,7 +724,7 @@ setwd("/Users/Helena/405_Linux_outputs/")
 
 "%nin" = Negate("%in%")
 
-#closed/ac+
+# closed/ac+
 MPP_closed_ac <- filter(enhancers_and_genes, MPP_atac_significant == 0, MPP_ac_significant == 1)
 CMP_closed_ac <- filter(enhancers_and_genes, CMP_atac_significant == 0, CMP_ac_significant == 1)
 GMP_closed_ac <- filter(enhancers_and_genes, GMP_atac_significant == 0, GMP_ac_significant == 1)
@@ -729,7 +732,7 @@ B_cell_closed_ac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bce
 Mono_closed_ac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 1)
 Gran_closed_ac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 1)
 
-#closed/ac-
+# closed/ac-
 MPP_closed_ac_unique <- filter(MPP_closed_ac, !duplicated(MPP_closed_ac["gene"]))
 CMP_closed_ac_unique <- filter(CMP_closed_ac, !duplicated(CMP_closed_ac["gene"]))
 GMP_closed_ac_unique <- filter(GMP_closed_ac, !duplicated(GMP_closed_ac["gene"]))
@@ -744,7 +747,7 @@ B_cell_closed_unac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, B
 Mono_closed_unac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 0, gene %nin% Mono_closed_ac_unique$gene)
 Gran_closed_unac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 0, gene %nin% Gran_closed_ac_unique$gene)
 
-#open/ac+
+# open/ac+
 MPP_open_ac <- filter(enhancers_and_genes, MPP_atac_significant == 1, MPP_ac_significant == 1)
 CMP_open_ac <- filter(enhancers_and_genes, CMP_atac_significant == 1, CMP_ac_significant == 1)
 GMP_open_ac <- filter(enhancers_and_genes, GMP_atac_significant == 1, GMP_ac_significant == 1)
@@ -752,7 +755,7 @@ B_cell_open_ac <- filter(enhancers_and_genes, Bcell_atac_significant == 1, Bcell
 Mono_open_ac <- filter(enhancers_and_genes, Mono_atac_significant == 1, Mono_ac_significant == 1)
 Gran_open_ac <- filter(enhancers_and_genes, Gran_atac_significant == 1, Gran_ac_significant == 1)
 
-#open/ac-
+# open/ac-
 MPP_open_ac_unique <- filter(MPP_open_ac, !duplicated(MPP_open_ac["gene"]))
 CMP_open_ac_unique <- filter(CMP_open_ac, !duplicated(CMP_open_ac["gene"]))
 GMP_open_ac_unique <- filter(GMP_open_ac, !duplicated(GMP_open_ac["gene"]))
@@ -767,9 +770,9 @@ B_cell_open_unac <- filter(enhancers_and_genes, Bcell_atac_significant == 0, Bce
 Mono_open_unac <- filter(enhancers_and_genes, Mono_atac_significant == 0, Mono_ac_significant == 0, gene %nin% Mono_open_ac_unique$gene)
 Gran_open_unac <- filter(enhancers_and_genes, Gran_atac_significant == 0, Gran_ac_significant == 0, gene %nin% Gran_open_ac_unique$gene)
 
-#GO-BP enrichment analysis of gene subsets (nearest enhancer open/closed chromatin x H3K27ac-/+) ###
+### GO-BP enrichment analysis of gene subsets (nearest enhancer open/closed chromatin x H3K27ac-/+) ###
 
-#closed/ac-
+# closed/ac-
 GO_MPP_closed_unac <- {
    
   gene_subset <- MPP_closed_unac %>% 
@@ -915,7 +918,7 @@ GO_Gran_closed_unac <- {
   
 }
 
-#closed/ac+
+# closed/ac+
 GO_MPP_closed_ac <- {
 
   gene_subset <- MPP_closed_ac %>% 
@@ -1061,7 +1064,7 @@ GO_Gran_closed_ac <- {
   
 }
 
-#open/ac-
+# open/ac-
 GO_MPP_open_unac <- {
 
   gene_subset <- MPP_open_unac %>% 
@@ -1207,7 +1210,7 @@ GO_Gran_open_unac <- {
   
 }
 
-#open/ac+
+# open/ac+
 GO_MPP_open_ac <- {
 
   gene_subset <- MPP_open_ac %>% 
