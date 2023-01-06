@@ -1,7 +1,8 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-#Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
-#Authors: Melanie Law, Helena Sokolovska, Andrew Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
+# Sunset Enhancers: Tracing H3K27 Acetylation on Closed Chromatin in Myeloid Lineage Differentiation
+# Authors: Melanie Law, Helena Sokolovska, Andrew Murtha, Kitoosepe Martens, Annice Li, and Kalen Dofher
+
 
 ##### DATA IMPORT ####
 
@@ -28,10 +29,10 @@ done;
 
 parallel -j16 < ./srr_metadata/gnu_download.txt
 
+
 #### ALIGN BAM FILES FOR iCHIP AND ATAC-SEQ #####
 
 python ./python/rename_fastq.py
-
 
 fq_dir=./data/fastq
 ref=/projects/micb405/analysis/references/mm10/mm10.fa
@@ -62,8 +63,8 @@ done;
 
 parallel -j12 < $pfile
 
-#### RUN MACS2 ON ALL iCHIP AND ATAC-SEQ DATA #####
 
+#### RUN MACS2 ON ALL iCHIP AND ATAC-SEQ DATA #####
 
 # cd into alignments folder
 bam_dir=./data/DNA_alignments
@@ -71,7 +72,7 @@ bam_dir=./data/DNA_alignments
 mkdir ./data/macs2_comb/
 touch ./parallel/macs2_parallel.txt
 
-# Loop over all bam files and write a macs2 call to the parallel file
+# loop over all bam files and write a macs2 call to the parallel file
 for f in $(echo $bam_dir/*.bam | tr " " "\n" | cut -d"_" -f1,2 | uniq);
 do
 	fs=$(echo $bam_dir/${f}*)
@@ -79,15 +80,16 @@ do
 done
 parallel -j12 < ./parallel/macs2_parallel.txt
 
+
 #### CREATE FOLD-ENRICHMENT FILES FROM MACS2 BEDGRAPH OUTPUT ####
 
-#cd into macs2 folder
+# cd into macs2 folder
 macs_dir=./data/macs2_comb
 
 rm ../parallel/get_FE.txt
 touch ../parallel/get_FE.txt
 
-#loop over types
+# loop over types
 for f in $macs_dir/*treat_pileup.bdg; do
 	t=$(echo $f | cut -d"_" -f1,2)
 	treat=$macs_dir/${f}
@@ -101,14 +103,15 @@ done;
 
 parallel -j12 < ../parallel/get_FE.txt
 
-#### SORT FE BEDGRAPH FILES
+
+#### SORT FE BEDGRAPH FILES ####
 
 cd $macs_dir/
 parallel_dir=../../parallel
 rm $parallel_dir/sort_FE.txt
 touch $parallel_dir/sort_FE.txt
 
-#loop over types
+# loop over types
 for f in *FE.bdg; do
         echo "bedtools sort -i $f > ${f/.bdg/.sorted.bdg}" >> $parallel_dir/sort_FE.txt
 done;
@@ -134,7 +137,7 @@ enh=../references/mm10_enhancerAll.bed
 rm $parallel_dir/merge_enh.txt
 touch $parallel_dir/merge_enh.txt
 
-#loop over types
+# loop over types
 for f in *_FE.bdg; do
         t=$(echo $f | cut -d"_" -f1,2);
         echo $t
@@ -152,12 +155,13 @@ done
 
 parallel -j12 < ../parallel/merge_dups.txt
 
-## Merge peak files
+
+### Merge peak files ###
 
 rm ../parallel/merge_peaks.txt
 touch ../parallel/merge_peaks.txt
 
-#loop over types
+# loop over types
 for f in *_peaks.narrowPeak; do
 	t=$(echo $f | cut -d"_" -f1,2);
 	echo $t
